@@ -347,6 +347,30 @@
         }
         .error-retry:hover { background: rgba(255,255,255,0.35); }
 
+        /* --- GitHub repos --- */
+        .github-repo {
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius);
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+        }
+        .github-repo-name {
+            font-weight: 600;
+            color: var(--color-primary);
+            text-decoration: none;
+        }
+        .github-repo-name:hover { text-decoration: underline; }
+        .github-repo-desc {
+            font-size: 0.88rem;
+            color: var(--color-text-muted);
+            margin: 0.25rem 0;
+        }
+        .github-repo-reason {
+            font-size: 0.85rem;
+            font-style: italic;
+            color: var(--color-success);
+        }
+
         [hidden] { display: none !important; }
     </style>
 </head>
@@ -462,6 +486,11 @@
             <div id="cv-preview" class="markdown-preview"></div>
         </div>
 
+        <div id="github-projects-card" class="card" hidden>
+            <h2>GitHub Projects Used</h2>
+            <div id="github-projects-list"></div>
+        </div>
+
         <div id="cover-letter-card" class="card" hidden>
             <h2>Cover Letter</h2>
             <div id="cl-preview" class="markdown-preview"></div>
@@ -525,6 +554,7 @@
         comments: '',
         generateCoverLetter: true,
         maxWords: 400,
+        githubProjects: null,
         lastRequestBody: null,
     };
 
@@ -555,6 +585,8 @@
         btnGenerate: document.getElementById('btn-generate'),
         btnBackStep1: document.getElementById('btn-back-step1'),
         cvPreview: document.getElementById('cv-preview'),
+        githubProjectsCard: document.getElementById('github-projects-card'),
+        githubProjectsList: document.getElementById('github-projects-list'),
         coverLetterCard: document.getElementById('cover-letter-card'),
         clPreview: document.getElementById('cl-preview'),
         gapsPreview: document.getElementById('gaps-preview'),
@@ -649,6 +681,25 @@
         dom.cvPreview.innerHTML = marked.parse(state.cvMarkdown || '');
         dom.gapsPreview.innerHTML = marked.parse(state.gapsMarkdown || '');
 
+        if (state.githubProjects && state.githubProjects.length > 0) {
+            dom.githubProjectsList.innerHTML = '';
+            state.githubProjects.forEach(function(repo) {
+                var div = document.createElement('div');
+                div.className = 'github-repo';
+                var nameEl = repo.private
+                    ? '<strong>' + repo.name + '</strong>'
+                    : '<a href="' + repo.html_url + '" target="_blank" rel="noopener" class="github-repo-name">' + repo.name + '</a>';
+                div.innerHTML = '<div>' + nameEl + '</div>'
+                    + '<div class="github-repo-desc">' + (repo.description || 'No description') + '</div>'
+                    + '<div class="skill-tags" style="margin:0.25rem 0">' + (repo.technologies || []).map(function(t) { return '<span class="skill-tag">' + t + '</span>'; }).join('') + '</div>'
+                    + (repo.relevance_reason ? '<div class="github-repo-reason">' + repo.relevance_reason + '</div>' : '');
+                dom.githubProjectsList.appendChild(div);
+            });
+            dom.githubProjectsCard.hidden = false;
+        } else {
+            dom.githubProjectsCard.hidden = true;
+        }
+
         if (state.coverLetterMarkdown) {
             dom.clPreview.innerHTML = marked.parse(state.coverLetterMarkdown);
             dom.coverLetterCard.hidden = false;
@@ -739,6 +790,9 @@
                         if (evt.data.cv_markdown !== undefined) {
                             state.cvMarkdown = evt.data.cv_markdown;
                             state.gapsMarkdown = evt.data.gaps;
+                        }
+                        if (evt.data.github_projects !== undefined) {
+                            state.githubProjects = evt.data.github_projects;
                         }
                         if (evt.data.cover_letter_markdown !== undefined) {
                             state.coverLetterMarkdown = evt.data.cover_letter_markdown;
@@ -868,6 +922,7 @@
         state.cvMarkdown = null;
         state.gapsMarkdown = null;
         state.coverLetterMarkdown = null;
+        state.githubProjects = null;
         state.cvPdfPath = null;
         state.clPdfPath = null;
         state.iteration = 1;

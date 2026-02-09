@@ -19,6 +19,21 @@ def load_json(file_path):
     with open(file_path, 'r') as f:
         return json.load(f)
 
+def _build_github_section(cv_database):
+    """Build prompt section for GitHub projects if available."""
+    github_projects = cv_database.get("github_projects", [])
+    if not github_projects:
+        return ""
+    return f"""
+CANDIDATE'S RELEVANT GITHUB PROJECTS (RECENT WORK):
+{json.dumps(github_projects, indent=2)}
+
+These are the candidate's most recent, actively maintained projects selected from GitHub.
+IMPORTANT: Prioritize these over older static projects when they are relevant to the job.
+Include the GitHub URL for each project used in the CV.
+"""
+
+
 def generate_tailored_cv(job_analysis, cv_database, user_comments, iteration=1, refinement_feedback=''):
     """Use Claude to generate tailored CV."""
     client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
@@ -69,7 +84,7 @@ JOB ANALYSIS:
 
 CANDIDATE'S FULL CV DATABASE:
 {json.dumps(cv_database, indent=2)}
-
+{_build_github_section(cv_database)}
 USER'S SPECIFIC COMMENTS (HIGH PRIORITY - INCORPORATE PROMINENTLY):
 {user_comments}
 

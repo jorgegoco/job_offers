@@ -28,6 +28,7 @@ from execution.analyze_job_offer import scrape_job_url, analyze_with_llm
 from execution.analyze_master_cv import get_user_data
 from execution.generate_tailored_cv import generate_tailored_cv
 from execution.generate_cover_letter import generate_cover_letter
+from execution.fetch_github_repos import fetch_all_repos, select_relevant_repos
 from execution.apply_template import (
     analyze_template_style,
     markdown_to_pdf,
@@ -46,6 +47,7 @@ CV_DATABASE_PATH = TMP_DIR / "cv_database.json"
 TAILORED_CV_PATH = TMP_DIR / "tailored_cv.md"
 CV_GAPS_PATH = TMP_DIR / "cv_gaps.txt"
 COVER_LETTER_PATH = TMP_DIR / "cover_letter.md"
+GITHUB_SELECTED_PATH = TMP_DIR / "github_repos_selected.json"
 
 # --- Pydantic models ---
 
@@ -141,6 +143,34 @@ def _build_length_constraint(max_words: Optional[int], max_chars: Optional[int])
     return "approximately 300-400 words"
 
 
+def _get_github_username():
+    """Extract GitHub username from profile data."""
+    cv_data = get_user_data()
+    github_url = cv_data.get("personal_info", {}).get("github", "")
+    if not github_url:
+        return None
+    return github_url.rstrip("/").split("/")[-1]
+
+
+def _fetch_github_projects(job_analysis):
+    """Fetch and select relevant GitHub projects. Returns (repos, error_msg)."""
+    username = _get_github_username()
+    if not username:
+        return [], None
+
+    token = os.getenv("GITHUB_TOKEN")
+    if not token:
+        return [], None
+
+    try:
+        all_repos = fetch_all_repos(username)
+        selected = select_relevant_repos(all_repos, job_analysis)
+        _save_json(GITHUB_SELECTED_PATH, selected)
+        return selected, None
+    except Exception as e:
+        return [], str(e)
+
+
 def _generate_pdfs(skip_cover_letter: bool = False) -> dict:
     """Generate PDFs from the .tmp/ markdown files. Returns paths."""
     _ensure_dirs()
@@ -225,6 +255,16 @@ def api_load_cv():
     return cv_data
 
 
+@app.post("/api/fetch-github")
+def api_fetch_github():
+    """Fetch all GitHub repos for the user (cached 24h)."""
+    username = _get_github_username()
+    if not username:
+        raise HTTPException(status_code=400, detail="No GitHub URL in profile.")
+    repos = fetch_all_repos(username)
+    return {"repos": repos, "count": len(repos)}
+
+
 @app.post("/api/generate-cv")
 def api_generate_cv(req: GenerateCVRequest):
     """Generate a tailored CV from job_analysis + cv_database in .tmp/."""
@@ -235,6 +275,11 @@ def api_generate_cv(req: GenerateCVRequest):
 
     job_analysis = load_json(str(JOB_ANALYSIS_PATH))
     cv_database = load_json(str(CV_DATABASE_PATH))
+
+    # Inject GitHub projects if available
+    github_projects, _ = _fetch_github_projects(job_analysis)
+    if github_projects:
+        cv_database["github_projects"] = github_projects
 
     raw_cv = generate_tailored_cv(
         job_analysis,
@@ -360,6 +405,21 @@ def api_generate_all(req: GenerateAllRequest):
         except Exception as e:
             yield _sse_event("error", {"step": "loading_cv", "message": str(e)})
             return
+
+        # --- Step 2b: Fetch GitHub projects ---
+        yield _sse_event("progress", {"step": "fetching_github", "message": "Scanning GitHub for relevant projects..."})
+        try:
+            github_projects, gh_error = _fetch_github_projects(analysis)
+            if github_projects:
+                cv_data["github_projects"] = github_projects
+                _save_json(CV_DATABASE_PATH, cv_data)
+        except Exception as e:
+            github_projects = []
+
+        yield _sse_event("step_result", {
+            "step": "fetching_github",
+            "github_projects": github_projects,
+        })
 
         # --- Step 3: Generate tailored CV ---
         yield _sse_event("progress", {"step": "generating_cv", "message": "Generating tailored CV..."})

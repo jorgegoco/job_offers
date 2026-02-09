@@ -98,6 +98,25 @@ After job analysis is complete:
 
 ---
 
+### Step 4b: Fetch GitHub Projects
+**Tool**: `execution/fetch_github_repos.py`
+
+**What it does**:
+- Fetches all repos from GitHub API (cached for 24 hours in `.tmp/github_repos.json`)
+- Uses Claude to select 3-5 repos most relevant to the job
+- Enriches selected repos with README content
+- Injects selected repos into cv_database under `github_projects` key
+
+**Output**: Selected repos saved to `.tmp/job_applications/github_repos_selected.json`
+
+**GitHub username**: Extracted from `resources/profile.json` → `personal_info.github`
+
+**Performance**: First run fetches from API (~5-15s depending on repo count). Subsequent runs within 24 hours use cache (instant for repo list, still needs LLM call for selection).
+
+**Non-fatal**: If GitHub token is missing or API is unavailable, the pipeline continues without GitHub data. Projects from `resources/profile.json` are still used.
+
+---
+
 ### Step 5: Show Suggestions Before Generation (Orchestration)
 **Who**: Agent (you) displays these suggestions
 
@@ -136,6 +155,7 @@ If user wants to modify: go back to Step 2 to add more comments.
 - Apply emoji header format: `📧 email | 🔗 LinkedIn | 💼 Portfolio | 🐙 GitHub`
 - Ensure max 2 pages
 - Flag gaps between requirements and experience
+- **Prioritize recent GitHub projects** over older static projects in the profile when they match the job requirements. Include GitHub URLs for projects used.
 
 **CRITICAL - Content that must NEVER appear in the tailored CV:**
 - Gap analysis sections ("Análisis de Gaps", "Gap Analysis", "Gaps Identificados")
