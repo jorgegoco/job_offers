@@ -12,6 +12,7 @@ from typing import Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from starlette.responses import StreamingResponse
 from starlette.staticfiles import StaticFiles
 from pydantic import BaseModel
 from dotenv import load_dotenv
@@ -73,6 +74,8 @@ class GenerateAllRequest(BaseModel):
     comments: str
     generate_cover_letter: bool = True
     max_words: Optional[int] = None
+    iteration: Optional[int] = 1
+    refinement_feedback: Optional[str] = ""
 
 # --- FastAPI app ---
 
@@ -293,63 +296,139 @@ def api_download(filename: str):
     return FileResponse(path=str(file_path), filename=file_path.name)
 
 
+def _sse_event(event: str, data: dict) -> str:
+    """Format a Server-Sent Event."""
+    return f"event: {event}\ndata: {json.dumps(data)}\n\n"
+
+
 @app.post("/api/generate-all")
 def api_generate_all(req: GenerateAllRequest):
     """
-    One-click full pipeline: analyze job -> load CV -> generate tailored CV
-    -> (optionally) generate cover letter -> generate PDFs.
+    Full pipeline with SSE progress events.
+    Streams: progress -> step_result -> ... -> complete (or error).
+    On iteration > 1, skips job analysis (reuses existing .tmp/ data).
     """
-    _ensure_dirs()
+    iteration = req.iteration or 1
+    refinement_feedback = req.refinement_feedback or ""
 
-    # Step 1: Analyze job
-    if not req.url and not req.text:
+    # Validate before starting stream
+    if iteration <= 1 and not req.url and not req.text:
         raise HTTPException(status_code=400, detail="Provide either 'url' or 'text'.")
+    if iteration > 1 and not JOB_ANALYSIS_PATH.exists():
+        raise HTTPException(status_code=400, detail="Cannot refine: no previous job analysis found.")
 
-    job_text = None
-    if req.url:
-        job_text = scrape_job_url(req.url)
-        if not job_text:
-            raise HTTPException(status_code=422, detail="Failed to scrape URL.")
-    else:
-        job_text = req.text
+    def event_stream():
+        _ensure_dirs()
 
-    analysis = analyze_with_llm(job_text)
-    analysis["source"] = {
-        "url": req.url,
-        "raw_text": job_text[:500] + "..." if len(job_text) > 500 else job_text,
-    }
-    _save_json(JOB_ANALYSIS_PATH, analysis)
+        # --- Step 1: Analyze job (skip on refinement) ---
+        if iteration <= 1:
+            yield _sse_event("progress", {"step": "analyzing_job", "message": "Analyzing job offer..."})
+            try:
+                job_text = None
+                if req.url:
+                    job_text = scrape_job_url(req.url)
+                    if not job_text:
+                        yield _sse_event("error", {
+                            "step": "analyzing_job",
+                            "message": "Could not access URL. Please paste the job text instead.",
+                        })
+                        return
+                else:
+                    job_text = req.text
 
-    # Step 2: Load CV database
-    cv_data = get_user_data()
-    cv_data["metadata"] = {"data_source": "hardcoded", "note": "Loaded via generate-all pipeline"}
-    _save_json(CV_DATABASE_PATH, cv_data)
+                analysis = analyze_with_llm(job_text)
+                analysis["source"] = {
+                    "url": req.url,
+                    "raw_text": job_text[:500] + "..." if len(job_text) > 500 else job_text,
+                }
+                _save_json(JOB_ANALYSIS_PATH, analysis)
+            except Exception as e:
+                yield _sse_event("error", {"step": "analyzing_job", "message": str(e)})
+                return
 
-    # Step 3: Generate tailored CV
-    raw_cv = generate_tailored_cv(analysis, cv_data, req.comments)
-    cv_content, gap_analysis = _split_cv_and_gaps(raw_cv)
-    _save_text(TAILORED_CV_PATH, cv_content)
-    _save_text(CV_GAPS_PATH, gap_analysis)
+            yield _sse_event("step_result", {"step": "analyzing_job", "job_analysis": analysis})
+        else:
+            analysis = load_json(str(JOB_ANALYSIS_PATH))
+            yield _sse_event("step_result", {"step": "analyzing_job", "job_analysis": analysis})
 
-    # Step 4: Generate cover letter (if requested)
-    if req.generate_cover_letter:
-        length_constraint = _build_length_constraint(req.max_words, None)
-        cover_letter_md = generate_cover_letter(
-            analysis,
-            cv_content,
-            req.comments,
-            length_constraint=length_constraint,
-        )
-        _save_text(COVER_LETTER_PATH, cover_letter_md)
+        # --- Step 2: Load CV database ---
+        yield _sse_event("progress", {"step": "loading_cv", "message": "Loading CV database..."})
+        try:
+            cv_data = get_user_data()
+            cv_data["metadata"] = {"data_source": "hardcoded", "note": "Loaded via generate-all pipeline"}
+            _save_json(CV_DATABASE_PATH, cv_data)
+        except Exception as e:
+            yield _sse_event("error", {"step": "loading_cv", "message": str(e)})
+            return
 
-    # Step 5: Generate PDFs
-    pdf_result = _generate_pdfs(skip_cover_letter=not req.generate_cover_letter)
+        # --- Step 3: Generate tailored CV ---
+        yield _sse_event("progress", {"step": "generating_cv", "message": "Generating tailored CV..."})
+        try:
+            raw_cv = generate_tailored_cv(
+                analysis, cv_data, req.comments,
+                iteration=iteration, refinement_feedback=refinement_feedback,
+            )
+            cv_content, gap_analysis = _split_cv_and_gaps(raw_cv)
+            _save_text(TAILORED_CV_PATH, cv_content)
+            _save_text(CV_GAPS_PATH, gap_analysis)
+        except Exception as e:
+            yield _sse_event("error", {"step": "generating_cv", "message": str(e)})
+            return
 
-    return {
-        "job_analysis": analysis,
-        "cv_gaps": gap_analysis,
-        **pdf_result,
-    }
+        yield _sse_event("step_result", {
+            "step": "generating_cv",
+            "cv_markdown": cv_content,
+            "gaps": gap_analysis,
+        })
+
+        # --- Step 4: Generate cover letter (if requested) ---
+        cover_letter_md = None
+        if req.generate_cover_letter:
+            yield _sse_event("progress", {"step": "generating_cover_letter", "message": "Generating cover letter..."})
+            try:
+                length_constraint = f"approximately {req.max_words} words" if req.max_words else "approximately 300-400 words"
+                cover_letter_md = generate_cover_letter(
+                    analysis, cv_content, req.comments,
+                    length_constraint=length_constraint,
+                    iteration=iteration, refinement_feedback=refinement_feedback,
+                )
+                _save_text(COVER_LETTER_PATH, cover_letter_md)
+            except Exception as e:
+                yield _sse_event("error", {"step": "generating_cover_letter", "message": str(e)})
+                return
+
+            yield _sse_event("step_result", {
+                "step": "generating_cover_letter",
+                "cover_letter_markdown": cover_letter_md,
+            })
+
+        # --- Step 5: Generate PDFs ---
+        yield _sse_event("progress", {"step": "creating_pdfs", "message": "Creating PDFs..."})
+        try:
+            job_analysis_for_pdf = load_json(str(JOB_ANALYSIS_PATH)) if JOB_ANALYSIS_PATH.exists() else {}
+            style_config = analyze_template_style(
+                str(TEMPLATE_PATH) if TEMPLATE_PATH.exists() else None
+            )
+
+            cv_md = load_markdown(str(TAILORED_CV_PATH))
+            cv_filename = generate_filename(job_analysis_for_pdf, "CV")
+            cv_output = OUTPUT_DIR / cv_filename
+            markdown_to_pdf(cv_md, cv_output, style_config)
+            pdf_result = {"cv_pdf_path": str(cv_output.relative_to(PROJECT_ROOT))}
+
+            if req.generate_cover_letter and COVER_LETTER_PATH.exists():
+                cl_md = load_markdown(str(COVER_LETTER_PATH))
+                cl_filename = generate_filename(job_analysis_for_pdf, "CoverLetter")
+                cl_output = OUTPUT_DIR / cl_filename
+                markdown_to_pdf(cl_md, cl_output, style_config)
+                pdf_result["cover_letter_pdf_path"] = str(cl_output.relative_to(PROJECT_ROOT))
+        except Exception as e:
+            yield _sse_event("error", {"step": "creating_pdfs", "message": str(e)})
+            return
+
+        yield _sse_event("complete", pdf_result)
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 
 # --- Static files (SPA) - MUST be after all API routes ---

@@ -334,6 +334,18 @@
             padding: 0;
             line-height: 1;
         }
+        .error-retry {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.5);
+            color: #fff;
+            padding: 0.3rem 0.8rem;
+            border-radius: var(--radius);
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .error-retry:hover { background: rgba(255,255,255,0.35); }
 
         [hidden] { display: none !important; }
     </style>
@@ -492,6 +504,7 @@
 <!-- ERROR TOAST -->
 <div id="error-toast" class="error-toast" hidden>
     <span id="error-message"></span>
+    <button id="error-retry" class="error-retry" hidden>Retry</button>
     <button id="error-close" class="error-close" aria-label="Close">&times;</button>
 </div>
 
@@ -500,7 +513,7 @@
     'use strict';
 
     // --- State ---
-    const state = {
+    var state = {
         currentStep: 1,
         jobAnalysis: null,
         cvMarkdown: null,
@@ -512,10 +525,11 @@
         comments: '',
         generateCoverLetter: true,
         maxWords: 400,
+        lastRequestBody: null,
     };
 
     // --- DOM cache ---
-    const dom = {
+    var dom = {
         step1: document.getElementById('step-1'),
         step2: document.getElementById('step-2'),
         step3: document.getElementById('step-3'),
@@ -553,16 +567,17 @@
         loadingMessage: document.getElementById('loading-message'),
         errorToast: document.getElementById('error-toast'),
         errorMessage: document.getElementById('error-message'),
+        errorRetry: document.getElementById('error-retry'),
         errorClose: document.getElementById('error-close'),
     };
 
-    // --- API layer ---
+    // --- API layer (for non-SSE calls) ---
     async function apiCall(url, body) {
-        const options = { method: 'POST', headers: { 'Content-Type': 'application/json' } };
+        var options = { method: 'POST', headers: { 'Content-Type': 'application/json' } };
         if (body !== undefined) options.body = JSON.stringify(body);
-        const res = await fetch(url, options);
+        var res = await fetch(url, options);
         if (!res.ok) {
-            const err = await res.json().catch(() => ({}));
+            var err = await res.json().catch(function() { return {}; });
             throw new Error(err.detail || 'API error: ' + res.status);
         }
         return res.json();
@@ -577,12 +592,16 @@
         dom.loadingOverlay.hidden = true;
     }
 
-    let errorTimer = null;
-    function showError(msg) {
+    var errorTimer = null;
+    function showError(msg, retryFn) {
         dom.errorMessage.textContent = msg;
         dom.errorToast.hidden = false;
+        dom.errorRetry.hidden = !retryFn;
+        dom.errorRetry.onclick = retryFn || null;
         clearTimeout(errorTimer);
-        errorTimer = setTimeout(() => { dom.errorToast.hidden = true; }, 8000);
+        if (!retryFn) {
+            errorTimer = setTimeout(function() { dom.errorToast.hidden = true; }, 8000);
+        }
     }
 
     // --- Navigation ---
@@ -592,7 +611,7 @@
         dom.step2.hidden = n !== 2;
         dom.step3.hidden = n !== 3;
 
-        [dom.stepInd1, dom.stepInd2, dom.stepInd3].forEach((el, i) => {
+        [dom.stepInd1, dom.stepInd2, dom.stepInd3].forEach(function(el, i) {
             el.classList.remove('active', 'completed');
             if (i + 1 < n) el.classList.add('completed');
             if (i + 1 === n) el.classList.add('active');
@@ -651,45 +670,109 @@
         dom.refinementFeedback.value = '';
     }
 
-    // --- Generation pipeline ---
-    async function runGenerationPipeline(isRefinement, feedback) {
+    // --- SSE parser ---
+    function parseSSEChunk(buffer) {
+        var events = [];
+        var parts = buffer.split('\n\n');
+        var remainder = parts.pop(); // incomplete event stays in buffer
+        for (var i = 0; i < parts.length; i++) {
+            var raw = parts[i].trim();
+            if (!raw) continue;
+            var eventType = 'message';
+            var data = '';
+            var lines = raw.split('\n');
+            for (var j = 0; j < lines.length; j++) {
+                if (lines[j].indexOf('event: ') === 0) eventType = lines[j].slice(7);
+                else if (lines[j].indexOf('data: ') === 0) data = lines[j].slice(6);
+            }
+            if (data) {
+                try { events.push({ type: eventType, data: JSON.parse(data) }); }
+                catch (e) { events.push({ type: eventType, data: data }); }
+            }
+        }
+        return { events: events, remainder: remainder };
+    }
+
+    // --- SSE-based generation pipeline ---
+    async function streamGenerateAll(body) {
+        state.lastRequestBody = body;
+        var controller = new AbortController();
+        var timeout = setTimeout(function() { controller.abort(); }, 180000);
+
         try {
-            showLoading('Loading CV database...');
-            await apiCall('/api/load-cv');
-
-            showLoading('Generating tailored CV... (this may take 10\u201330 seconds)');
-            var cvResult = await apiCall('/api/generate-cv', {
-                comments: state.comments,
-                iteration: isRefinement ? state.iteration : 1,
-                refinement_feedback: isRefinement ? (feedback || '') : '',
+            showLoading('Starting pipeline...');
+            var res = await fetch('/api/generate-all', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+                signal: controller.signal,
             });
-            state.cvMarkdown = cvResult.cv_markdown;
-            state.gapsMarkdown = cvResult.gaps;
+            clearTimeout(timeout);
 
-            if (state.generateCoverLetter) {
-                showLoading('Generating cover letter...');
-                var clResult = await apiCall('/api/generate-cover-letter', {
-                    comments: state.comments,
-                    max_words: state.maxWords,
-                    iteration: isRefinement ? state.iteration : 1,
-                    refinement_feedback: isRefinement ? (feedback || '') : '',
-                });
-                state.coverLetterMarkdown = clResult.cover_letter_markdown;
-            } else {
-                state.coverLetterMarkdown = null;
+            if (!res.ok) {
+                var errBody = await res.json().catch(function() { return {}; });
+                throw new Error(errBody.detail || 'API error: ' + res.status);
             }
 
-            showLoading('Creating PDFs...');
-            var pdfResult = await apiCall('/api/generate-pdfs', {
-                skip_cover_letter: !state.generateCoverLetter,
-            });
-            state.cvPdfPath = pdfResult.cv_pdf_path;
-            state.clPdfPath = pdfResult.cover_letter_pdf_path || null;
+            var reader = res.body.getReader();
+            var decoder = new TextDecoder();
+            var buffer = '';
+            var completed = false;
 
-            renderResults();
-            goToStep(3);
+            while (true) {
+                var chunk = await reader.read();
+                if (chunk.done) break;
+                buffer += decoder.decode(chunk.value, { stream: true });
+
+                var parsed = parseSSEChunk(buffer);
+                buffer = parsed.remainder;
+
+                for (var i = 0; i < parsed.events.length; i++) {
+                    var evt = parsed.events[i];
+
+                    if (evt.type === 'progress') {
+                        showLoading(evt.data.message || 'Processing...');
+                    } else if (evt.type === 'step_result') {
+                        if (evt.data.job_analysis) {
+                            state.jobAnalysis = evt.data.job_analysis;
+                        }
+                        if (evt.data.cv_markdown !== undefined) {
+                            state.cvMarkdown = evt.data.cv_markdown;
+                            state.gapsMarkdown = evt.data.gaps;
+                        }
+                        if (evt.data.cover_letter_markdown !== undefined) {
+                            state.coverLetterMarkdown = evt.data.cover_letter_markdown;
+                        }
+                    } else if (evt.type === 'complete') {
+                        state.cvPdfPath = evt.data.cv_pdf_path || null;
+                        state.clPdfPath = evt.data.cover_letter_pdf_path || null;
+                        completed = true;
+                        renderResults();
+                        goToStep(3);
+                    } else if (evt.type === 'error') {
+                        throw new Error(evt.data.message || 'Pipeline failed at step: ' + evt.data.step);
+                    }
+                }
+            }
+
+            if (!completed) {
+                throw new Error('Connection closed before pipeline completed.');
+            }
         } catch (err) {
-            showError(err.message);
+            clearTimeout(timeout);
+            if (err.name === 'AbortError') {
+                showError('Request timed out. The server may still be processing.', function() {
+                    dom.errorToast.hidden = true;
+                    streamGenerateAll(body);
+                });
+            } else if (err instanceof TypeError && err.message.indexOf('fetch') !== -1) {
+                showError('Network error. Check your connection and try again.', function() {
+                    dom.errorToast.hidden = true;
+                    streamGenerateAll(body);
+                });
+            } else {
+                showError(err.message);
+            }
         } finally {
             hideLoading();
         }
@@ -697,7 +780,7 @@
 
     // --- Event listeners ---
 
-    // Step 1: Analyze
+    // Step 1: Analyze (still uses regular API call for preview)
     dom.btnAnalyze.addEventListener('click', async function() {
         var url = dom.jobUrl.value.trim();
         var text = dom.jobText.value.trim();
@@ -713,7 +796,11 @@
             renderAnalysis(analysis);
             dom.analysisResult.hidden = false;
         } catch (err) {
-            showError(err.message);
+            if (err.message.indexOf('scrape') !== -1 || err.message.indexOf('422') !== -1) {
+                showError('Could not access URL. Please paste the job text instead.');
+            } else {
+                showError(err.message);
+            }
         } finally {
             hideLoading();
         }
@@ -730,16 +817,31 @@
         dom.coverLetterOptions.style.display = dom.genCoverLetter.checked ? '' : 'none';
     });
 
-    // Step 2: Generate
+    // Step 2: Generate Documents (uses SSE /api/generate-all)
     dom.btnGenerate.addEventListener('click', function() {
         state.comments = dom.comments.value.trim();
         state.generateCoverLetter = dom.genCoverLetter.checked;
         state.maxWords = parseInt(dom.maxWords.value, 10) || 400;
         state.iteration = 1;
-        runGenerationPipeline(false);
+        state.coverLetterMarkdown = null;
+
+        var url = (state.jobAnalysis && state.jobAnalysis.source && state.jobAnalysis.source.url)
+            ? state.jobAnalysis.source.url
+            : dom.jobUrl.value.trim();
+        var text = dom.jobText.value.trim();
+
+        var body = {
+            comments: state.comments,
+            generate_cover_letter: state.generateCoverLetter,
+        };
+        if (url) body.url = url;
+        else if (text) body.text = text;
+        if (state.generateCoverLetter && state.maxWords) body.max_words = state.maxWords;
+
+        streamGenerateAll(body);
     });
 
-    // Step 3: Regenerate
+    // Step 3: Regenerate with feedback (uses SSE with iteration)
     dom.btnRegenerate.addEventListener('click', function() {
         var feedback = dom.refinementFeedback.value.trim();
         if (!feedback) {
@@ -747,7 +849,17 @@
             return;
         }
         state.iteration += 1;
-        runGenerationPipeline(true, feedback);
+        state.coverLetterMarkdown = null;
+
+        var body = {
+            comments: state.comments,
+            generate_cover_letter: state.generateCoverLetter,
+            iteration: state.iteration,
+            refinement_feedback: feedback,
+        };
+        if (state.generateCoverLetter && state.maxWords) body.max_words = state.maxWords;
+
+        streamGenerateAll(body);
     });
 
     // Step 3: Start over
@@ -760,6 +872,7 @@
         state.clPdfPath = null;
         state.iteration = 1;
         state.comments = '';
+        state.lastRequestBody = null;
         dom.jobUrl.value = '';
         dom.jobText.value = '';
         dom.comments.value = '';
@@ -771,7 +884,7 @@
         goToStep(1);
     });
 
-    // Error close
+    // Error toast controls
     dom.errorClose.addEventListener('click', function() {
         dom.errorToast.hidden = true;
     });
