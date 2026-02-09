@@ -7,6 +7,9 @@
 credentials.json
 token.json
 
+# Personal profile data
+resources/profile.json
+
 # Temporary and intermediate files
 .tmp/
 *.tmp

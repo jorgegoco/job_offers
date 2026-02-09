@@ -11,9 +11,9 @@ Generate tailored CVs and cover letters for specific job offers, matching the jo
 
 ## Resources (one-time setup)
 - **Master CV** (`resources/job_applications/master_cv.pdf`): Complete CV with all experience
-  - **Data source**: Hardcoded in `execution/analyze_master_cv.py` as `HARDCODED_USER_DATA`
+  - **Data source**: `resources/profile.json` — the single source of truth for all profile data
   - No LLM extraction needed - instant data loading
-  - To update: edit the `HARDCODED_USER_DATA` dictionary directly in the script
+  - To update: edit `resources/profile.json` directly or use `update_profile()` from `execution/analyze_master_cv.py`
 - **Design template** (`resources/job_applications/cv_template.pdf`): Visual style reference for final output
 
 ## Workflow Steps
@@ -61,12 +61,12 @@ After job analysis is complete:
 2. **Ask**: "Is there any additional information relevant to THIS job to add to your profile?"
 
 3. **If user provides additional info**:
-   - Evaluate if it should be permanently added to `HARDCODED_USER_DATA`
-   - **If permanent**: Print instructions for updating `execution/analyze_master_cv.py`
+   - Evaluate if it should be permanently added to `resources/profile.json`
+   - **If permanent**: Use `update_profile()` from `execution/analyze_master_cv.py` to save it
    - **If temporary/job-specific**: Pass as `--comments` to generation scripts
 
-4. **MANDATORY: Update HARDCODED_USER_DATA with new skills** (see "Mandatory Skill Updates" section below)
-   - Any new skill, certification, or experience mentioned during the conversation MUST be added to `HARDCODED_USER_DATA`
+4. **MANDATORY: Update profile.json with new skills** (see "Mandatory Skill Updates" section below)
+   - Any new skill, certification, or experience mentioned during the conversation MUST be added to `resources/profile.json`
    - This is NOT optional - skills revealed during CV tailoring are valuable profile data
    - Update immediately after generating documents, before ending the conversation
 
@@ -88,7 +88,7 @@ After job analysis is complete:
 **Tool**: `execution/analyze_master_cv.py`
 
 **What it does**:
-- Loads `HARDCODED_USER_DATA` (no LLM call, instant)
+- Loads profile from `resources/profile.json` (no LLM call, instant)
 - Extracts raw text from PDF for metadata (optional)
 - Outputs cv_database.json
 
@@ -275,7 +275,7 @@ If user wants to modify: go back to Step 2 to add more comments.
 
 ## Mandatory Skill Updates
 
-**CRITICAL RULE**: When the user mentions ANY new skill, technology, certification, or experience during a CV tailoring conversation, the agent MUST update `HARDCODED_USER_DATA` in `execution/analyze_master_cv.py` BEFORE ending the conversation.
+**CRITICAL RULE**: When the user mentions ANY new skill, technology, certification, or experience during a CV tailoring conversation, the agent MUST update `resources/profile.json` BEFORE ending the conversation.
 
 ### Why this is mandatory:
 - Skills mentioned during tailoring are real skills the user has
@@ -284,15 +284,15 @@ If user wants to modify: go back to Step 2 to add more comments.
 - The user shouldn't have to repeat themselves
 
 ### What to update:
-1. **New programming languages** → Add to `technical_skills.programming_languages`
-2. **New frameworks/libraries** → Add to `technical_skills.frameworks`
-3. **New AI/ML skills** → Add to `technical_skills.ai_ml`
-4. **New tools** → Add to `technical_skills.tools`
-5. **New cloud services** → Add to `technical_skills.cloud`
-6. **New certifications** → Add to `certifications` list
-7. **New projects** → Add to `projects` list
-8. **New soft skills** → Add to `soft_skills` list
-9. **New methodologies** → Add to `technical_skills.methodologies`
+1. **New programming languages** → `update_profile("technical_skills.programming_languages", ["NewLang"])`
+2. **New frameworks/libraries** → `update_profile("technical_skills.frameworks", ["NewFramework"])`
+3. **New AI/ML skills** → `update_profile("technical_skills.ai_ml", ["NewSkill"])`
+4. **New tools** → `update_profile("technical_skills.tools", ["NewTool"])`
+5. **New cloud services** → `update_profile("technical_skills.cloud", ["NewService"])`
+6. **New certifications** → `update_profile("certifications", [{"name": "...", "issuer": "...", "date": "..."}])`
+7. **New projects** → `update_profile("projects", [{"name": "...", "description": "...", "technologies": [...]}])`
+8. **New soft skills** → `update_profile("soft_skills", ["NewSkill"])`
+9. **New methodologies** → `update_profile("technical_skills.methodologies", ["NewMethod"])`
 
 ### When to update:
 - After document generation is complete
@@ -302,9 +302,9 @@ If user wants to modify: go back to Step 2 to add more comments.
 ### Example workflow:
 1. User says: "I also have experience with Kubernetes and AWS EKS"
 2. Generate CV/cover letter with these skills via `--comments`
-3. AFTER generation, update `HARDCODED_USER_DATA`:
-   - Add "Kubernetes" to `technical_skills.tools`
-   - Add "AWS EKS" to `technical_skills.cloud`
+3. AFTER generation, update `resources/profile.json`:
+   - `update_profile("technical_skills.tools", ["Kubernetes"])`
+   - `update_profile("technical_skills.cloud", ["AWS EKS"])`
 4. Inform user: "I've also updated your master profile with Kubernetes and AWS EKS"
 
 **This is NOT optional. Every CV tailoring session should enrich the user's profile.**
@@ -313,15 +313,14 @@ If user wants to modify: go back to Step 2 to add more comments.
 
 ## Updating User Data
 
-To update your CV information:
+To update your CV information, edit `resources/profile.json` directly or use the `update_profile()` function from `execution/analyze_master_cv.py`.
 
-1. Edit `execution/analyze_master_cv.py`
-2. Modify the `HARDCODED_USER_DATA` dictionary
-3. Re-run the workflow - changes take effect immediately
+### Option 1: Edit profile.json directly
 
-**Example - Adding a new job**:
-```python
-# Add to work_experience list:
+Edit the JSON file and modify fields. Changes take effect on next run.
+
+**Example - Adding a new job** (append to `work_experience` array):
+```json
 {
     "role": "New Job Title",
     "company": "Company Name",
@@ -335,18 +334,21 @@ To update your CV information:
 }
 ```
 
-**Example - Adding skills from LinkedIn endorsements**:
-```python
-# Add to technical_skills:
-"programming_languages": [..., "Java", "C#", "R"],
-"ai_ml": [..., "TensorFlow", "PyTorch", "Deep Learning", "NLP"],
-"tools": [..., "Docker", "Linux"],
+### Option 2: Use update_profile() programmatically
 
-# Add certifications:
-"certifications": [
-    {"name": "TensorFlow Developer", "issuer": "Coursera", "date": "Jan 2020"},
-    ...
-]
+```python
+from execution.analyze_master_cv import update_profile
+
+# Add skills (deduplicates automatically)
+update_profile("technical_skills.programming_languages", ["Go", "Rust"])
+update_profile("technical_skills.tools", ["Kubernetes"])
+update_profile("technical_skills.cloud", ["AWS EKS"])
+
+# Add a certification
+update_profile("certifications", [{"name": "AWS Solutions Architect", "issuer": "AWS", "date": "Jan 2026"}])
+
+# Add soft skills
+update_profile("soft_skills", ["Mentoring", "Public Speaking"])
 ```
 
 ## Error Recovery
