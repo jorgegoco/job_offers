@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Application Generator</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        :root {
+            --color-bg: #f5f5f7;
+            --color-surface: #ffffff;
+            --color-header: #1a1a2e;
+            --color-primary: #3498db;
+            --color-primary-hover: #2980b9;
+            --color-text: #333333;
+            --color-text-muted: #666666;
+            --color-border: #e0e0e0;
+            --color-success: #27ae60;
+            --color-error: #e74c3c;
+            --color-skill-bg: #e8f4fd;
+            --color-skill-text: #2980b9;
+            --color-gap-bg: #fef9e7;
+            --color-gap-text: #856404;
+            --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            --radius: 8px;
+            --shadow: 0 2px 8px rgba(0,0,0,0.08);
+            --max-width: 720px;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: var(--font);
+            background: var(--color-bg);
+            color: var(--color-text);
+            line-height: 1.5;
+            min-height: 100vh;
+        }
+
+        /* --- Header --- */
+        .app-header {
+            background: var(--color-header);
+            color: #fff;
+            padding: 1.25rem 1rem;
+            text-align: center;
+        }
+        .app-header h1 { font-size: 1.5rem; font-weight: 700; }
+        .app-header .subtitle { color: rgba(255,255,255,0.65); font-size: 0.9rem; margin-top: 0.2rem; }
+
+        /* --- Step indicator --- */
+        .step-indicator ol {
+            display: flex;
+            justify-content: center;
+            list-style: none;
+            padding: 0.75rem 1rem;
+            background: var(--color-surface);
+            border-bottom: 1px solid var(--color-border);
+            gap: 0.25rem;
+        }
+        .step-indicator li {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.4rem 0.75rem;
+            color: var(--color-text-muted);
+            font-size: 0.85rem;
+        }
+        .step-number {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 1.6rem;
+            height: 1.6rem;
+            border-radius: 50%;
+            border: 2px solid currentColor;
+            font-size: 0.75rem;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+        .step-indicator li.active { color: var(--color-primary); font-weight: 600; }
+        .step-indicator li.active .step-number {
+            background: var(--color-primary);
+            color: #fff;
+            border-color: var(--color-primary);
+        }
+        .step-indicator li.completed { color: var(--color-success); }
+        .step-indicator li.completed .step-number {
+            background: var(--color-success);
+            color: #fff;
+            border-color: var(--color-success);
+        }
+
+        /* --- Layout --- */
+        .container {
+            max-width: var(--max-width);
+            margin: 0 auto;
+            padding: 1rem;
+        }
+
+        /* --- Cards --- */
+        .card {
+            background: var(--color-surface);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        .card h2 {
+            font-size: 1.15rem;
+            margin-bottom: 1rem;
+            color: var(--color-header);
+        }
+
+        /* --- Form elements --- */
+        .input-group { margin-bottom: 1rem; }
+        .input-group label {
+            display: block;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 0.35rem;
+            color: var(--color-text);
+        }
+        input[type="url"],
+        input[type="number"],
+        textarea {
+            width: 100%;
+            padding: 0.7rem;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius);
+            font-size: 1rem;
+            font-family: var(--font);
+            background: #fff;
+            transition: border-color 0.2s;
+        }
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 3px rgba(52,152,219,0.15);
+        }
+        textarea { resize: vertical; }
+
+        .checkbox-group {
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .checkbox-group label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.95rem;
+            cursor: pointer;
+        }
+        .checkbox-group input[type="checkbox"] {
+            width: 1.1rem;
+            height: 1.1rem;
+            accent-color: var(--color-primary);
+        }
+
+        /* --- OR divider --- */
+        .divider-or {
+            text-align: center;
+            position: relative;
+            margin: 1rem 0;
+            color: var(--color-text-muted);
+            font-size: 0.85rem;
+        }
+        .divider-or::before,
+        .divider-or::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            width: calc(50% - 1.5rem);
+            height: 1px;
+            background: var(--color-border);
+        }
+        .divider-or::before { left: 0; }
+        .divider-or::after { right: 0; }
+
+        /* --- Buttons --- */
+        .btn {
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: var(--radius);
+            font-size: 1rem;
+            font-weight: 600;
+            font-family: var(--font);
+            cursor: pointer;
+            text-decoration: none;
+            text-align: center;
+            transition: background 0.2s, opacity 0.2s;
+        }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-primary { background: var(--color-primary); color: #fff; }
+        .btn-primary:hover:not(:disabled) { background: var(--color-primary-hover); }
+        .btn-secondary { background: var(--color-border); color: var(--color-text); }
+        .btn-secondary:hover:not(:disabled) { background: #ccc; }
+        .button-row { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+
+        @media (max-width: 480px) {
+            .btn { width: 100%; }
+            .button-row { flex-direction: column; }
+        }
+
+        /* --- Analysis summary --- */
+        .analysis-grid {
+            display: grid;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+        .analysis-field .field-label {
+            display: block;
+            font-size: 0.8rem;
+            color: var(--color-text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            margin-bottom: 0.15rem;
+        }
+        .analysis-field .field-value {
+            display: block;
+            font-weight: 600;
+            font-size: 1rem;
+        }
+        @media (min-width: 600px) {
+            .analysis-grid { grid-template-columns: 1fr 1fr; }
+            .analysis-grid .full-width { grid-column: 1 / -1; }
+        }
+
+        /* --- Skill tags --- */
+        .skill-tags { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+        .skill-tag {
+            background: var(--color-skill-bg);
+            color: var(--color-skill-text);
+            padding: 0.2rem 0.65rem;
+            border-radius: 999px;
+            font-size: 0.82rem;
+            font-weight: 500;
+        }
+
+        /* --- Gap list --- */
+        .gap-list {
+            list-style: none;
+            padding: 0;
+        }
+        .gap-list li {
+            background: var(--color-gap-bg);
+            color: var(--color-gap-text);
+            padding: 0.35rem 0.75rem;
+            border-radius: var(--radius);
+            margin-bottom: 0.35rem;
+            font-size: 0.9rem;
+        }
+
+        /* --- Markdown preview --- */
+        .markdown-preview {
+            line-height: 1.65;
+            max-height: 60vh;
+            overflow-y: auto;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius);
+            padding: 1rem;
+            font-size: 0.92rem;
+        }
+        .markdown-preview h1 { font-size: 1.35rem; margin-bottom: 0.4rem; }
+        .markdown-preview h2 {
+            font-size: 1.1rem;
+            color: var(--color-primary);
+            border-bottom: 2px solid var(--color-primary);
+            padding-bottom: 0.2rem;
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+        }
+        .markdown-preview h3 { font-size: 0.95rem; margin-top: 0.75rem; }
+        .markdown-preview ul, .markdown-preview ol { padding-left: 1.4rem; }
+        .markdown-preview li { margin: 0.2rem 0; }
+        .markdown-preview strong { color: #2c3e50; }
+        .markdown-preview p { margin: 0.3rem 0; }
+        .markdown-preview a { color: var(--color-primary); }
+
+        /* --- Loading overlay --- */
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(255,255,255,0.92);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid var(--color-border);
+            border-top-color: var(--color-primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading-message {
+            margin-top: 1rem;
+            font-size: 1.05rem;
+            color: var(--color-text-muted);
+            text-align: center;
+            padding: 0 1rem;
+        }
+
+        /* --- Error toast --- */
+        .error-toast {
+            position: fixed;
+            bottom: 1rem;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--color-error);
+            color: #fff;
+            padding: 0.75rem 1.25rem;
+            border-radius: var(--radius);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            z-index: 200;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            max-width: 90vw;
+            font-size: 0.9rem;
+        }
+        .error-close {
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 1.3rem;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+        }
+
+        [hidden] { display: none !important; }
+    </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="app-header">
+    <h1>Job Application Generator</h1>
+    <p class="subtitle">AI-powered CV and cover letter tailoring</p>
+</header>
+
+<!-- STEP INDICATOR -->
+<nav class="step-indicator" aria-label="Progress">
+    <ol>
+        <li id="step-ind-1" class="active">
+            <span class="step-number">1</span>
+            <span class="step-label">Job Input</span>
+        </li>
+        <li id="step-ind-2">
+            <span class="step-number">2</span>
+            <span class="step-label">Options</span>
+        </li>
+        <li id="step-ind-3">
+            <span class="step-number">3</span>
+            <span class="step-label">Results</span>
+        </li>
+    </ol>
+</nav>
+
+<main class="container">
+
+    <!-- STEP 1: JOB INPUT -->
+    <section id="step-1" class="step-section">
+        <div class="card">
+            <h2>Paste Job Offer</h2>
+            <div class="input-group">
+                <label for="job-url">Job URL</label>
+                <input type="url" id="job-url" placeholder="https://linkedin.com/jobs/view/...">
+            </div>
+            <div class="divider-or"><span>OR</span></div>
+            <div class="input-group">
+                <label for="job-text">Job Description Text</label>
+                <textarea id="job-text" rows="8" placeholder="Paste the full job description here..."></textarea>
+            </div>
+            <button id="btn-analyze" class="btn btn-primary">Analyze Job</button>
+        </div>
+
+        <div id="analysis-result" class="card" hidden>
+            <h2>Job Analysis</h2>
+            <div class="analysis-grid">
+                <div class="analysis-field">
+                    <span class="field-label">Job Title</span>
+                    <span id="out-job-title" class="field-value"></span>
+                </div>
+                <div class="analysis-field">
+                    <span class="field-label">Company</span>
+                    <span id="out-company" class="field-value"></span>
+                </div>
+                <div class="analysis-field">
+                    <span class="field-label">Location</span>
+                    <span id="out-location" class="field-value"></span>
+                </div>
+                <div class="analysis-field">
+                    <span class="field-label">Language</span>
+                    <span id="out-language" class="field-value"></span>
+                </div>
+                <div class="analysis-field">
+                    <span class="field-label">Level</span>
+                    <span id="out-level" class="field-value"></span>
+                </div>
+                <div class="analysis-field full-width">
+                    <span class="field-label">Required Skills</span>
+                    <div id="out-skills" class="skill-tags"></div>
+                </div>
+                <div class="analysis-field full-width">
+                    <span class="field-label">Gaps to Watch</span>
+                    <ul id="out-gaps" class="gap-list"></ul>
+                </div>
+            </div>
+            <button id="btn-next-step2" class="btn btn-primary">Continue to Options</button>
+        </div>
+    </section>
+
+    <!-- STEP 2: OPTIONS -->
+    <section id="step-2" class="step-section" hidden>
+        <div class="card">
+            <h2>Generation Options</h2>
+            <div class="input-group">
+                <label for="comments">Comments / Angles to Emphasize</label>
+                <textarea id="comments" rows="4" placeholder="e.g., Emphasize my React experience and the real-time systems I built at The Ticket Merchant..."></textarea>
+            </div>
+            <div class="checkbox-group">
+                <label>
+                    <input type="checkbox" id="gen-cover-letter" checked>
+                    Generate cover letter
+                </label>
+            </div>
+            <div id="cover-letter-options" class="input-group">
+                <label for="max-words">Max words for cover letter</label>
+                <input type="number" id="max-words" value="400" min="100" max="1000" step="50">
+            </div>
+            <div class="button-row">
+                <button id="btn-generate" class="btn btn-primary">Generate Documents</button>
+                <button id="btn-back-step1" class="btn btn-secondary">Back</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- STEP 3: RESULTS -->
+    <section id="step-3" class="step-section" hidden>
+        <div class="card">
+            <h2>Tailored CV</h2>
+            <div id="cv-preview" class="markdown-preview"></div>
+        </div>
+
+        <div id="cover-letter-card" class="card" hidden>
+            <h2>Cover Letter</h2>
+            <div id="cl-preview" class="markdown-preview"></div>
+        </div>
+
+        <div class="card">
+            <h2>Gap Analysis</h2>
+            <div id="gaps-preview" class="markdown-preview"></div>
+        </div>
+
+        <div class="card">
+            <h2>Download PDFs</h2>
+            <div class="button-row">
+                <a id="btn-download-cv" class="btn btn-primary" href="#" download>Download CV PDF</a>
+                <a id="btn-download-cl" class="btn btn-secondary" href="#" download hidden>Download Cover Letter PDF</a>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Refine Results</h2>
+            <div class="input-group">
+                <label for="refinement-feedback">Feedback for regeneration</label>
+                <textarea id="refinement-feedback" rows="3" placeholder="e.g., Make the summary shorter, add more emphasis on Python..."></textarea>
+            </div>
+            <div class="button-row">
+                <button id="btn-regenerate" class="btn btn-primary">Regenerate with Feedback</button>
+                <button id="btn-start-over" class="btn btn-secondary">Start Over</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- LOADING OVERLAY -->
+    <div id="loading-overlay" class="loading-overlay" hidden>
+        <div class="spinner"></div>
+        <p id="loading-message" class="loading-message">Processing...</p>
+    </div>
+
+</main>
+
+<!-- ERROR TOAST -->
+<div id="error-toast" class="error-toast" hidden>
+    <span id="error-message"></span>
+    <button id="error-close" class="error-close" aria-label="Close">&times;</button>
+</div>
+
+<script>
+(function() {
+    'use strict';
+
+    // --- State ---
+    const state = {
+        currentStep: 1,
+        jobAnalysis: null,
+        cvMarkdown: null,
+        gapsMarkdown: null,
+        coverLetterMarkdown: null,
+        cvPdfPath: null,
+        clPdfPath: null,
+        iteration: 1,
+        comments: '',
+        generateCoverLetter: true,
+        maxWords: 400,
+    };
+
+    // --- DOM cache ---
+    const dom = {
+        step1: document.getElementById('step-1'),
+        step2: document.getElementById('step-2'),
+        step3: document.getElementById('step-3'),
+        stepInd1: document.getElementById('step-ind-1'),
+        stepInd2: document.getElementById('step-ind-2'),
+        stepInd3: document.getElementById('step-ind-3'),
+        jobUrl: document.getElementById('job-url'),
+        jobText: document.getElementById('job-text'),
+        btnAnalyze: document.getElementById('btn-analyze'),
+        analysisResult: document.getElementById('analysis-result'),
+        outJobTitle: document.getElementById('out-job-title'),
+        outCompany: document.getElementById('out-company'),
+        outLocation: document.getElementById('out-location'),
+        outLanguage: document.getElementById('out-language'),
+        outLevel: document.getElementById('out-level'),
+        outSkills: document.getElementById('out-skills'),
+        outGaps: document.getElementById('out-gaps'),
+        btnNextStep2: document.getElementById('btn-next-step2'),
+        comments: document.getElementById('comments'),
+        genCoverLetter: document.getElementById('gen-cover-letter'),
+        coverLetterOptions: document.getElementById('cover-letter-options'),
+        maxWords: document.getElementById('max-words'),
+        btnGenerate: document.getElementById('btn-generate'),
+        btnBackStep1: document.getElementById('btn-back-step1'),
+        cvPreview: document.getElementById('cv-preview'),
+        coverLetterCard: document.getElementById('cover-letter-card'),
+        clPreview: document.getElementById('cl-preview'),
+        gapsPreview: document.getElementById('gaps-preview'),
+        btnDownloadCv: document.getElementById('btn-download-cv'),
+        btnDownloadCl: document.getElementById('btn-download-cl'),
+        refinementFeedback: document.getElementById('refinement-feedback'),
+        btnRegenerate: document.getElementById('btn-regenerate'),
+        btnStartOver: document.getElementById('btn-start-over'),
+        loadingOverlay: document.getElementById('loading-overlay'),
+        loadingMessage: document.getElementById('loading-message'),
+        errorToast: document.getElementById('error-toast'),
+        errorMessage: document.getElementById('error-message'),
+        errorClose: document.getElementById('error-close'),
+    };
+
+    // --- API layer ---
+    async function apiCall(url, body) {
+        const options = { method: 'POST', headers: { 'Content-Type': 'application/json' } };
+        if (body !== undefined) options.body = JSON.stringify(body);
+        const res = await fetch(url, options);
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.detail || 'API error: ' + res.status);
+        }
+        return res.json();
+    }
+
+    function showLoading(msg) {
+        dom.loadingMessage.textContent = msg;
+        dom.loadingOverlay.hidden = false;
+    }
+
+    function hideLoading() {
+        dom.loadingOverlay.hidden = true;
+    }
+
+    let errorTimer = null;
+    function showError(msg) {
+        dom.errorMessage.textContent = msg;
+        dom.errorToast.hidden = false;
+        clearTimeout(errorTimer);
+        errorTimer = setTimeout(() => { dom.errorToast.hidden = true; }, 8000);
+    }
+
+    // --- Navigation ---
+    function goToStep(n) {
+        state.currentStep = n;
+        dom.step1.hidden = n !== 1;
+        dom.step2.hidden = n !== 2;
+        dom.step3.hidden = n !== 3;
+
+        [dom.stepInd1, dom.stepInd2, dom.stepInd3].forEach((el, i) => {
+            el.classList.remove('active', 'completed');
+            if (i + 1 < n) el.classList.add('completed');
+            if (i + 1 === n) el.classList.add('active');
+        });
+
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // --- Render analysis card ---
+    function renderAnalysis(data) {
+        dom.outJobTitle.textContent = data.job_title || 'N/A';
+        dom.outCompany.textContent = data.company || 'N/A';
+        dom.outLocation.textContent = data.location || 'N/A';
+        dom.outLanguage.textContent = (data.language || 'en').toUpperCase();
+        dom.outLevel.textContent = data.job_level || 'N/A';
+
+        dom.outSkills.innerHTML = '';
+        (data.required_skills || []).forEach(function(skill) {
+            var s = document.createElement('span');
+            s.className = 'skill-tag';
+            s.textContent = skill;
+            dom.outSkills.appendChild(s);
+        });
+
+        dom.outGaps.innerHTML = '';
+        (data.gaps_to_watch || []).forEach(function(gap) {
+            var li = document.createElement('li');
+            li.textContent = gap;
+            dom.outGaps.appendChild(li);
+        });
+    }
+
+    // --- Render results (Step 3) ---
+    function renderResults() {
+        dom.cvPreview.innerHTML = marked.parse(state.cvMarkdown || '');
+        dom.gapsPreview.innerHTML = marked.parse(state.gapsMarkdown || '');
+
+        if (state.coverLetterMarkdown) {
+            dom.clPreview.innerHTML = marked.parse(state.coverLetterMarkdown);
+            dom.coverLetterCard.hidden = false;
+            dom.btnDownloadCl.hidden = false;
+        } else {
+            dom.coverLetterCard.hidden = true;
+            dom.btnDownloadCl.hidden = true;
+        }
+
+        if (state.cvPdfPath) {
+            var cvFile = state.cvPdfPath.split('/').pop();
+            dom.btnDownloadCv.href = '/api/download/' + encodeURIComponent(cvFile);
+        }
+        if (state.clPdfPath) {
+            var clFile = state.clPdfPath.split('/').pop();
+            dom.btnDownloadCl.href = '/api/download/' + encodeURIComponent(clFile);
+        }
+
+        dom.refinementFeedback.value = '';
+    }
+
+    // --- Generation pipeline ---
+    async function runGenerationPipeline(isRefinement, feedback) {
+        try {
+            showLoading('Loading CV database...');
+            await apiCall('/api/load-cv');
+
+            showLoading('Generating tailored CV... (this may take 10\u201330 seconds)');
+            var cvResult = await apiCall('/api/generate-cv', {
+                comments: state.comments,
+                iteration: isRefinement ? state.iteration : 1,
+                refinement_feedback: isRefinement ? (feedback || '') : '',
+            });
+            state.cvMarkdown = cvResult.cv_markdown;
+            state.gapsMarkdown = cvResult.gaps;
+
+            if (state.generateCoverLetter) {
+                showLoading('Generating cover letter...');
+                var clResult = await apiCall('/api/generate-cover-letter', {
+                    comments: state.comments,
+                    max_words: state.maxWords,
+                    iteration: isRefinement ? state.iteration : 1,
+                    refinement_feedback: isRefinement ? (feedback || '') : '',
+                });
+                state.coverLetterMarkdown = clResult.cover_letter_markdown;
+            } else {
+                state.coverLetterMarkdown = null;
+            }
+
+            showLoading('Creating PDFs...');
+            var pdfResult = await apiCall('/api/generate-pdfs', {
+                skip_cover_letter: !state.generateCoverLetter,
+            });
+            state.cvPdfPath = pdfResult.cv_pdf_path;
+            state.clPdfPath = pdfResult.cover_letter_pdf_path || null;
+
+            renderResults();
+            goToStep(3);
+        } catch (err) {
+            showError(err.message);
+        } finally {
+            hideLoading();
+        }
+    }
+
+    // --- Event listeners ---
+
+    // Step 1: Analyze
+    dom.btnAnalyze.addEventListener('click', async function() {
+        var url = dom.jobUrl.value.trim();
+        var text = dom.jobText.value.trim();
+        if (!url && !text) {
+            showError('Please provide a job URL or paste the job description text.');
+            return;
+        }
+        try {
+            showLoading('Analyzing job offer...');
+            var body = url ? { url: url } : { text: text };
+            var analysis = await apiCall('/api/analyze-job', body);
+            state.jobAnalysis = analysis;
+            renderAnalysis(analysis);
+            dom.analysisResult.hidden = false;
+        } catch (err) {
+            showError(err.message);
+        } finally {
+            hideLoading();
+        }
+    });
+
+    // Step 1 -> 2
+    dom.btnNextStep2.addEventListener('click', function() { goToStep(2); });
+
+    // Step 2 -> 1
+    dom.btnBackStep1.addEventListener('click', function() { goToStep(1); });
+
+    // Toggle cover letter options
+    dom.genCoverLetter.addEventListener('change', function() {
+        dom.coverLetterOptions.style.display = dom.genCoverLetter.checked ? '' : 'none';
+    });
+
+    // Step 2: Generate
+    dom.btnGenerate.addEventListener('click', function() {
+        state.comments = dom.comments.value.trim();
+        state.generateCoverLetter = dom.genCoverLetter.checked;
+        state.maxWords = parseInt(dom.maxWords.value, 10) || 400;
+        state.iteration = 1;
+        runGenerationPipeline(false);
+    });
+
+    // Step 3: Regenerate
+    dom.btnRegenerate.addEventListener('click', function() {
+        var feedback = dom.refinementFeedback.value.trim();
+        if (!feedback) {
+            showError('Please provide feedback for regeneration.');
+            return;
+        }
+        state.iteration += 1;
+        runGenerationPipeline(true, feedback);
+    });
+
+    // Step 3: Start over
+    dom.btnStartOver.addEventListener('click', function() {
+        state.jobAnalysis = null;
+        state.cvMarkdown = null;
+        state.gapsMarkdown = null;
+        state.coverLetterMarkdown = null;
+        state.cvPdfPath = null;
+        state.clPdfPath = null;
+        state.iteration = 1;
+        state.comments = '';
+        dom.jobUrl.value = '';
+        dom.jobText.value = '';
+        dom.comments.value = '';
+        dom.refinementFeedback.value = '';
+        dom.genCoverLetter.checked = true;
+        dom.maxWords.value = '400';
+        dom.coverLetterOptions.style.display = '';
+        dom.analysisResult.hidden = true;
+        goToStep(1);
+    });
+
+    // Error close
+    dom.errorClose.addEventListener('click', function() {
+        dom.errorToast.hidden = true;
+    });
+
+})();
+</script>
+
+</body>
+</html>

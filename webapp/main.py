@@ -12,6 +12,7 @@ from typing import Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from starlette.staticfiles import StaticFiles
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
@@ -349,3 +350,7 @@ def api_generate_all(req: GenerateAllRequest):
         "cv_gaps": gap_analysis,
         **pdf_result,
     }
+
+
+# --- Static files (SPA) - MUST be after all API routes ---
+app.mount("/", StaticFiles(directory=Path(__file__).parent / "static", html=True), name="static")
