@@ -180,6 +180,84 @@ Place all CV content ABOVE the separator. Place all gap analysis, recommendation
 
     return message.content[0].text
 
+def split_cv_and_gaps(raw_cv: str) -> tuple[str, str]:
+    """Split raw LLM output into clean CV content and gap analysis.
+
+    Uses a 3-layer defense:
+    1. Deterministic separator (---GAP_ANALYSIS_SEPARATOR---)
+    2. Fallback header markers (13 patterns across languages)
+    3. Post-split forbidden-pattern scan to catch leaked analysis
+    """
+    DETERMINISTIC_SEPARATOR = "---GAP_ANALYSIS_SEPARATOR---"
+
+    cv_content = raw_cv
+    gap_analysis = "## Gap Analysis\nNo significant gaps identified."
+
+    # --- Layer 1: Deterministic separator (highest priority) ---
+    if DETERMINISTIC_SEPARATOR in raw_cv:
+        cv_content, gap_analysis = raw_cv.split(DETERMINISTIC_SEPARATOR, 1)
+        gap_analysis = "## Gap Analysis\n" + gap_analysis.strip()
+    else:
+        # --- Layer 2: Fallback gap markers (expanded list) ---
+        gap_markers = [
+            "## Gap Analysis",
+            "## Análisis de Ajuste al Puesto",
+            "## Análisis de Brechas",
+            "## Analyse des Écarts",
+            "## Lückenanalyse",
+            "## Analisi delle Lacune",
+            "## Análise de Lacunas",
+            "## Análisis de Gaps y Recomendaciones",
+            "## Análisis de Gaps",
+            "## Gaps y Recomendaciones",
+            "## Recommendations",
+            "## Recomendaciones",
+            "## Gap Analysis and Recommendations",
+        ]
+
+        for marker in gap_markers:
+            if marker in raw_cv:
+                cv_content, gap_analysis = raw_cv.split(marker, 1)
+                gap_analysis = marker + gap_analysis
+                break
+
+    # --- Layer 3: Post-split forbidden content validation ---
+    forbidden_patterns = [
+        "gap analysis", "análisis de gaps", "análisis de brechas",
+        "análisis de ajuste", "recomendaciones finales", "recommendations",
+        "mitigación", "fortalezas compensatorias", "fortalezas excepcionales",
+        "gaps identificados", "gaps y recomendaciones", "sugerencia cv",
+        "sugerencia:", "durante la entrevista", "fit prácticamente perfecto",
+        "match rating", "% match",
+    ]
+
+    cv_lower = cv_content.lower()
+    first_forbidden_pos = len(cv_content)
+    first_forbidden_pattern = None
+
+    for pattern in forbidden_patterns:
+        pos = cv_lower.find(pattern)
+        if pos != -1 and pos < first_forbidden_pos:
+            first_forbidden_pos = pos
+            first_forbidden_pattern = pattern
+
+    if first_forbidden_pattern is not None:
+        line_start = cv_content.rfind('\n', 0, first_forbidden_pos)
+        if line_start == -1:
+            line_start = 0
+        else:
+            line_start += 1
+
+        leaked_content = cv_content[line_start:]
+        cv_content = cv_content[:line_start].rstrip()
+        gap_analysis = leaked_content.strip() + "\n\n" + gap_analysis
+
+    # Final cleanup: remove any remaining separator text from CV content
+    cv_content = cv_content.replace(DETERMINISTIC_SEPARATOR, "").rstrip()
+
+    return cv_content, gap_analysis
+
+
 def main():
     parser = argparse.ArgumentParser(description='Generate tailored CV')
     parser.add_argument('--job-analysis', default='.tmp/job_applications/job_analysis.json',
@@ -228,83 +306,7 @@ def main():
 
     tailored_cv = generate_tailored_cv(job_analysis, cv_database, args.comments, args.iteration, args.refinement_feedback)
 
-    # === 3-LAYER GAP ANALYSIS DEFENSE ===
-    DETERMINISTIC_SEPARATOR = "---GAP_ANALYSIS_SEPARATOR---"
-
-    cv_content = tailored_cv
-    gap_analysis = "## Gap Analysis\nNo significant gaps identified."
-    split_method = "none"
-
-    # --- Layer 1: Deterministic separator (highest priority) ---
-    if DETERMINISTIC_SEPARATOR in tailored_cv:
-        cv_content, gap_analysis = tailored_cv.split(DETERMINISTIC_SEPARATOR, 1)
-        gap_analysis = "## Gap Analysis\n" + gap_analysis.strip()
-        split_method = "deterministic_separator"
-        print(f"[SPLIT] Used deterministic separator")
-    else:
-        # --- Layer 2: Fallback gap markers (expanded list) ---
-        gap_markers = [
-            "## Gap Analysis",
-            "## Análisis de Ajuste al Puesto",
-            "## Análisis de Brechas",
-            "## Analyse des Écarts",
-            "## Lückenanalyse",
-            "## Analisi delle Lacune",
-            "## Análise de Lacunas",
-            "## Análisis de Gaps y Recomendaciones",
-            "## Análisis de Gaps",
-            "## Gaps y Recomendaciones",
-            "## Recommendations",
-            "## Recomendaciones",
-            "## Gap Analysis and Recommendations",
-        ]
-
-        for marker in gap_markers:
-            if marker in tailored_cv:
-                cv_content, gap_analysis = tailored_cv.split(marker, 1)
-                gap_analysis = marker + gap_analysis
-                split_method = f"marker:{marker}"
-                print(f"[SPLIT] Used fallback marker: {marker}")
-                break
-
-    # --- Layer 3: Post-split forbidden content validation ---
-    forbidden_patterns = [
-        "gap analysis", "análisis de gaps", "análisis de brechas",
-        "análisis de ajuste", "recomendaciones finales", "recommendations",
-        "mitigación", "fortalezas compensatorias", "fortalezas excepcionales",
-        "gaps identificados", "gaps y recomendaciones", "sugerencia cv",
-        "sugerencia:", "durante la entrevista", "fit prácticamente perfecto",
-        "match rating", "% match",
-    ]
-
-    cv_lower = cv_content.lower()
-    first_forbidden_pos = len(cv_content)
-    first_forbidden_pattern = None
-
-    for pattern in forbidden_patterns:
-        pos = cv_lower.find(pattern)
-        if pos != -1 and pos < first_forbidden_pos:
-            first_forbidden_pos = pos
-            first_forbidden_pattern = pattern
-
-    if first_forbidden_pattern is not None:
-        line_start = cv_content.rfind('\n', 0, first_forbidden_pos)
-        if line_start == -1:
-            line_start = 0
-        else:
-            line_start += 1
-
-        leaked_content = cv_content[line_start:]
-        cv_content = cv_content[:line_start].rstrip()
-        gap_analysis = leaked_content.strip() + "\n\n" + gap_analysis
-        print(f"WARNING: Forbidden pattern '{first_forbidden_pattern}' found in CV at position {first_forbidden_pos}. "
-              f"Stripped {len(leaked_content)} characters from CV content.")
-        split_method += f"+layer3_strip:{first_forbidden_pattern}"
-
-    print(f"[SPLIT] Final method: {split_method}")
-
-    # Final cleanup: remove any remaining separator text from CV content
-    cv_content = cv_content.replace(DETERMINISTIC_SEPARATOR, "").rstrip()
+    cv_content, gap_analysis = split_cv_and_gaps(tailored_cv)
 
     # Ensure output directory exists
     output_path = Path(args.output)

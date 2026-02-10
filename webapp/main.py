@@ -27,7 +27,7 @@ load_dotenv(PROJECT_ROOT / ".env")
 # --- Import core functions from execution scripts ---
 from execution.analyze_job_offer import scrape_job_url, analyze_with_llm
 from execution.analyze_master_cv import get_user_data
-from execution.generate_tailored_cv import generate_tailored_cv
+from execution.generate_tailored_cv import generate_tailored_cv, split_cv_and_gaps
 from execution.generate_cover_letter import generate_cover_letter
 from execution.fetch_github_repos import load_curated_repos, select_relevant_repos
 from execution.apply_template import (
@@ -113,24 +113,6 @@ def _save_text(path: Path, text: str):
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w") as f:
         f.write(text)
-
-
-def _split_cv_and_gaps(raw_cv: str) -> tuple[str, str]:
-    """Split the LLM output into CV content and gap analysis."""
-    gap_markers = [
-        "## Gap Analysis",
-        "## Análisis de Ajuste al Puesto",
-        "## Análisis de Brechas",
-        "## Analyse des Écarts",
-        "## Lückenanalyse",
-        "## Analisi delle Lacune",
-        "## Análise de Lacunas",
-    ]
-    for marker in gap_markers:
-        if marker in raw_cv:
-            cv_content, gap_analysis = raw_cv.split(marker, 1)
-            return cv_content.strip(), (marker + gap_analysis).strip()
-    return raw_cv.strip(), "## Gap Analysis\nNo significant gaps identified."
 
 
 def _build_length_constraint(max_words: Optional[int], max_chars: Optional[int]) -> str:
@@ -280,7 +262,7 @@ def api_generate_cv(req: GenerateCVRequest):
         refinement_feedback=req.refinement_feedback or "",
     )
 
-    cv_content, gap_analysis = _split_cv_and_gaps(raw_cv)
+    cv_content, gap_analysis = split_cv_and_gaps(raw_cv)
 
     _save_text(TAILORED_CV_PATH, cv_content)
     _save_text(CV_GAPS_PATH, gap_analysis)
@@ -419,7 +401,7 @@ def api_generate_all(req: GenerateAllRequest):
                 analysis, cv_data, req.comments,
                 iteration=iteration, refinement_feedback=refinement_feedback,
             )
-            cv_content, gap_analysis = _split_cv_and_gaps(raw_cv)
+            cv_content, gap_analysis = split_cv_and_gaps(raw_cv)
             _save_text(TAILORED_CV_PATH, cv_content)
             _save_text(CV_GAPS_PATH, gap_analysis)
         except Exception as e:
