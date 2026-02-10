@@ -172,7 +172,7 @@ def main():
                        help='Path to design template PDF')
     parser.add_argument('--job-analysis', default='.tmp/job_applications/job_analysis.json',
                        help='Path to job analysis (for filename generation)')
-    parser.add_argument('--output-dir', default='output/job_applications',
+    parser.add_argument('--output-dir', default='.tmp/job_applications',
                        help='Output directory for PDFs')
     parser.add_argument('--skip-cover-letter', action='store_true',
                        help='Skip cover letter generation')

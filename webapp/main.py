@@ -4,6 +4,7 @@ Run with: uvicorn webapp.main:app --host 0.0.0.0 --port 8000
 """
 
 import json
+import shutil
 import sys
 import os
 from pathlib import Path
@@ -98,9 +99,8 @@ app.add_middleware(
 # --- Helper functions ---
 
 def _ensure_dirs():
-    """Ensure .tmp and output directories exist."""
+    """Ensure .tmp directory exists."""
     TMP_DIR.mkdir(parents=True, exist_ok=True)
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def _save_json(path: Path, data: dict):
@@ -185,7 +185,7 @@ def _generate_pdfs(skip_cover_letter: bool = False) -> dict:
 
     cv_content = load_markdown(str(TAILORED_CV_PATH))
     cv_filename = generate_filename(job_analysis, "CV")
-    cv_output = OUTPUT_DIR / cv_filename
+    cv_output = TMP_DIR / cv_filename
     markdown_to_pdf(cv_content, cv_output, style_config)
     result["cv_pdf_path"] = str(cv_output.relative_to(PROJECT_ROOT))
 
@@ -198,7 +198,7 @@ def _generate_pdfs(skip_cover_letter: bool = False) -> dict:
             )
         cl_content = load_markdown(str(COVER_LETTER_PATH))
         cl_filename = generate_filename(job_analysis, "CoverLetter")
-        cl_output = OUTPUT_DIR / cl_filename
+        cl_output = TMP_DIR / cl_filename
         markdown_to_pdf(cl_content, cl_output, style_config)
         result["cover_letter_pdf_path"] = str(cl_output.relative_to(PROJECT_ROOT))
 
@@ -323,9 +323,9 @@ def api_generate_pdfs(req: GeneratePDFsRequest):
 
 @app.get("/api/download/{filename:path}")
 def api_download(filename: str):
-    """Serve a file from output/job_applications/."""
-    file_path = OUTPUT_DIR / filename
-    if not file_path.resolve().is_relative_to(OUTPUT_DIR.resolve()):
+    """Serve a generated file from .tmp/job_applications/."""
+    file_path = TMP_DIR / filename
+    if not file_path.resolve().is_relative_to(TMP_DIR.resolve()):
         raise HTTPException(status_code=403, detail="Access denied.")
     if not file_path.exists():
         raise HTTPException(status_code=404, detail=f"File not found: {filename}")
@@ -463,14 +463,14 @@ def api_generate_all(req: GenerateAllRequest):
 
             cv_md = load_markdown(str(TAILORED_CV_PATH))
             cv_filename = generate_filename(job_analysis_for_pdf, "CV")
-            cv_output = OUTPUT_DIR / cv_filename
+            cv_output = TMP_DIR / cv_filename
             markdown_to_pdf(cv_md, cv_output, style_config)
             pdf_result = {"cv_pdf_path": str(cv_output.relative_to(PROJECT_ROOT))}
 
             if req.generate_cover_letter and COVER_LETTER_PATH.exists():
                 cl_md = load_markdown(str(COVER_LETTER_PATH))
                 cl_filename = generate_filename(job_analysis_for_pdf, "CoverLetter")
-                cl_output = OUTPUT_DIR / cl_filename
+                cl_output = TMP_DIR / cl_filename
                 markdown_to_pdf(cl_md, cl_output, style_config)
                 pdf_result["cover_letter_pdf_path"] = str(cl_output.relative_to(PROJECT_ROOT))
         except Exception as e:
@@ -480,6 +480,20 @@ def api_generate_all(req: GenerateAllRequest):
         yield _sse_event("complete", pdf_result)
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
+@app.post("/api/save-documents")
+def api_save_documents():
+    """Copy generated PDFs from .tmp/ to output/ for permanent storage."""
+    pdfs = list(TMP_DIR.glob("*.pdf"))
+    if not pdfs:
+        raise HTTPException(status_code=400, detail="No documents to save. Generate PDFs first.")
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    saved = []
+    for pdf in pdfs:
+        shutil.copy2(pdf, OUTPUT_DIR / pdf.name)
+        saved.append(pdf.name)
+    return {"saved": saved, "destination": "output/job_applications/"}
 
 
 # --- Static files (SPA) - MUST be after all API routes ---

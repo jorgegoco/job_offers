@@ -507,6 +507,12 @@
                 <a id="btn-download-cv" class="btn btn-primary" href="#" download>Download CV PDF</a>
                 <a id="btn-download-cl" class="btn btn-secondary" href="#" download hidden>Download Cover Letter PDF</a>
             </div>
+            <div style="margin-top: 0.75rem">
+                <button id="btn-save-docs" class="btn" style="background:transparent; color:var(--color-primary); border:2px solid var(--color-primary)">
+                    Save to output/
+                </button>
+                <span id="save-docs-status" style="margin-left:0.75rem; font-size:0.9rem" hidden></span>
+            </div>
         </div>
 
         <div class="card">
@@ -592,6 +598,8 @@
         gapsPreview: document.getElementById('gaps-preview'),
         btnDownloadCv: document.getElementById('btn-download-cv'),
         btnDownloadCl: document.getElementById('btn-download-cl'),
+        btnSaveDocs: document.getElementById('btn-save-docs'),
+        saveDocsStatus: document.getElementById('save-docs-status'),
         refinementFeedback: document.getElementById('refinement-feedback'),
         btnRegenerate: document.getElementById('btn-regenerate'),
         btnStartOver: document.getElementById('btn-start-over'),
@@ -719,6 +727,7 @@
         }
 
         dom.refinementFeedback.value = '';
+        dom.saveDocsStatus.hidden = true;
     }
 
     // --- SSE parser ---
@@ -936,7 +945,25 @@
         dom.maxWords.value = '400';
         dom.coverLetterOptions.style.display = '';
         dom.analysisResult.hidden = true;
+        dom.saveDocsStatus.hidden = true;
         goToStep(1);
+    });
+
+    // Save documents to output/
+    dom.btnSaveDocs.addEventListener('click', async function() {
+        try {
+            dom.btnSaveDocs.disabled = true;
+            var result = await apiCall('/api/save-documents');
+            dom.saveDocsStatus.textContent = '\u2713 Saved to output/job_applications/';
+            dom.saveDocsStatus.style.color = 'var(--color-success)';
+            dom.saveDocsStatus.hidden = false;
+        } catch (err) {
+            dom.saveDocsStatus.textContent = err.message;
+            dom.saveDocsStatus.style.color = 'var(--color-error)';
+            dom.saveDocsStatus.hidden = false;
+        } finally {
+            dom.btnSaveDocs.disabled = false;
+        }
     });
 
     // Error toast controls
