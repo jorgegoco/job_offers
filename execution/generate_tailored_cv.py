@@ -24,13 +24,22 @@ def _build_github_section(cv_database):
     github_projects = cv_database.get("github_projects", [])
     if not github_projects:
         return ""
+
+    # Replace URLs with "Private repo" for private repositories
+    projects_for_prompt = []
+    for project in github_projects:
+        p = dict(project)
+        if p.get("private"):
+            p["html_url"] = "Private"
+        projects_for_prompt.append(p)
+
     return f"""
 CANDIDATE'S RELEVANT GITHUB PROJECTS (RECENT WORK):
-{json.dumps(github_projects, indent=2)}
+{json.dumps(projects_for_prompt, indent=2)}
 
 These are the candidate's most recent, actively maintained projects selected from GitHub.
 IMPORTANT: Prioritize these over older static projects when they are relevant to the job.
-Include the GitHub URL for each project used in the CV.
+Include the GitHub URL for each public project used in the CV. For private repos, write "[Private]" instead of a link.
 """
 
 
