@@ -42,3 +42,24 @@ Then open http://localhost:8000/docs for the interactive Swagger UI.
 6. `GET /api/download/CV_Company_Title_20260209.pdf`
 
 Or use `/api/generate-all` to run steps 1-5 in a single request.
+
+## Windows Desktop Launcher
+
+One-click launch from your Windows desktop:
+
+1. Run `scripts/create-shortcut.bat` once to create a desktop shortcut
+2. Double-click **"Job App Generator"** on your desktop to start the server and open the browser
+3. Run `scripts/stop-webapp.bat` to stop the server
+
+## Development Commands
+
+```bash
+make dev       # Auto-reload development server (watches webapp/ and execution/)
+make run       # Production mode (no reload)
+make install   # Install all dependencies
+make clean     # Remove temp files and __pycache__
+```
+
+**VS Code shortcuts:**
+- `Ctrl+Shift+B` — Start dev server (runs `make dev`)
+- `F5` — Debug with breakpoints (debugpy + uvicorn)
