@@ -8,29 +8,14 @@ import sys
 import argparse
 from pathlib import Path
 from datetime import datetime
-import json
 import markdown
 from weasyprint import HTML, CSS
 from weasyprint.text.fonts import FontConfiguration
-import PyPDF2
 
-def load_markdown(file_path):
-    """Load markdown file."""
-    with open(file_path, 'r') as f:
-        return f.read()
+from execution.utils import load_json, load_markdown
 
-def load_json(file_path):
-    """Load JSON file."""
-    with open(file_path, 'r') as f:
-        return json.load(f)
-
-def analyze_template_style(template_path):
-    """
-    Analyze the design template PDF to extract style information.
-    This is a placeholder - in practice, you'd extract fonts, colors, etc.
-    """
-    # For now, return default professional styling
-    # TODO: Implement actual template analysis using PDF parsing or Claude vision
+def analyze_template_style():
+    """Return default professional styling for PDF generation."""
     return {
         'font_family': 'Arial, sans-serif',
         'heading_color': '#2c3e50',
@@ -168,8 +153,6 @@ def main():
                        help='Path to tailored CV markdown')
     parser.add_argument('--cover-letter', default='.tmp/job_applications/cover_letter.md',
                        help='Path to cover letter markdown')
-    parser.add_argument('--template', default='resources/job_applications/cv_template.pdf',
-                       help='Path to design template PDF')
     parser.add_argument('--job-analysis', default='.tmp/job_applications/job_analysis.json',
                        help='Path to job analysis (for filename generation)')
     parser.add_argument('--output-dir', default='.tmp/job_applications',
@@ -187,15 +170,7 @@ def main():
     if Path(args.job_analysis).exists():
         job_analysis = load_json(args.job_analysis)
 
-    # Analyze template if it exists
-    style_config = {}
-    template_path = Path(args.template)
-    if template_path.exists():
-        print(f"Analyzing design template: {template_path}")
-        style_config = analyze_template_style(template_path)
-    else:
-        print("No template found, using default professional styling")
-        style_config = analyze_template_style(None)
+    style_config = analyze_template_style()
 
     # Generate CV PDF
     cv_path = Path(args.cv)

@@ -34,14 +34,12 @@ from execution.apply_template import (
     analyze_template_style,
     markdown_to_pdf,
     generate_filename,
-    load_markdown,
-    load_json,
 )
+from execution.utils import load_json, load_markdown
 
 # --- Shared paths ---
 TMP_DIR = PROJECT_ROOT / ".tmp" / "job_applications"
 OUTPUT_DIR = PROJECT_ROOT / "output" / "job_applications"
-TEMPLATE_PATH = PROJECT_ROOT / "resources" / "job_applications" / "cv_template.pdf"
 
 JOB_ANALYSIS_PATH = TMP_DIR / "job_analysis.json"
 CV_DATABASE_PATH = TMP_DIR / "cv_database.json"
@@ -155,9 +153,7 @@ def _generate_pdfs(skip_cover_letter: bool = False) -> dict:
     if JOB_ANALYSIS_PATH.exists():
         job_analysis = load_json(str(JOB_ANALYSIS_PATH))
 
-    style_config = analyze_template_style(
-        str(TEMPLATE_PATH) if TEMPLATE_PATH.exists() else None
-    )
+    style_config = analyze_template_style()
 
     result = {}
 
@@ -439,9 +435,7 @@ def api_generate_all(req: GenerateAllRequest):
         yield _sse_event("progress", {"step": "creating_pdfs", "message": "Creating PDFs..."})
         try:
             job_analysis_for_pdf = load_json(str(JOB_ANALYSIS_PATH)) if JOB_ANALYSIS_PATH.exists() else {}
-            style_config = analyze_template_style(
-                str(TEMPLATE_PATH) if TEMPLATE_PATH.exists() else None
-            )
+            style_config = analyze_template_style()
 
             cv_md = load_markdown(str(TAILORED_CV_PATH))
             cv_filename = generate_filename(job_analysis_for_pdf, "CV")

@@ -12,17 +12,9 @@ import anthropic
 import os
 from dotenv import load_dotenv
 
+from execution.utils import load_json, load_markdown
+
 load_dotenv()
-
-def load_json(file_path):
-    """Load JSON file."""
-    with open(file_path, 'r') as f:
-        return json.load(f)
-
-def load_markdown(file_path):
-    """Load markdown file."""
-    with open(file_path, 'r') as f:
-        return f.read()
 
 def generate_cover_letter(job_analysis, tailored_cv, user_comments, length_constraint="approximately 300-400 words", iteration=1, refinement_feedback=''):
     """Use Claude to generate cover letter."""

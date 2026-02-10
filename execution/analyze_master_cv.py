@@ -9,23 +9,8 @@ import sys
 import argparse
 from pathlib import Path
 from datetime import datetime, timezone
-import PyPDF2
 
 PROFILE_PATH = Path(__file__).resolve().parent.parent / "resources" / "profile.json"
-
-
-def extract_text_from_pdf(pdf_path):
-    """Extract text from PDF file for metadata purposes."""
-    try:
-        with open(pdf_path, 'rb') as file:
-            reader = PyPDF2.PdfReader(file)
-            text = ""
-            for page in reader.pages:
-                text += page.extract_text() + "\n"
-            return text
-    except Exception as e:
-        print(f"Warning: Could not extract raw text from PDF: {e}", file=sys.stderr)
-        return None
 
 
 def get_user_data():
@@ -104,14 +89,11 @@ def update_profile(field_path, new_data):
 
 def main():
     parser = argparse.ArgumentParser(description='Load CV data from user profile')
-    parser.add_argument('--cv', default='resources/job_applications/master_cv.pdf',
-                       help='Path to master CV PDF (used for raw text metadata only)')
     parser.add_argument('--output', default='.tmp/job_applications/cv_database.json',
                        help='Output JSON file path')
 
     args = parser.parse_args()
 
-    cv_path = Path(args.cv)
     output_path = Path(args.output)
 
     print(f"Loading profile from: {PROFILE_PATH}")
@@ -119,20 +101,8 @@ def main():
     # Load profile data
     cv_database = get_user_data()
 
-    # Extract raw text from PDF if available (for metadata only)
-    raw_text = None
-    if cv_path.exists():
-        print(f"Extracting raw text from: {cv_path}")
-        raw_text = extract_text_from_pdf(cv_path)
-        if raw_text:
-            print(f"  Extracted {len(raw_text)} characters for metadata")
-    else:
-        print(f"Note: CV file not found at {cv_path} (raw text metadata will be empty)")
-
     # Add metadata
     cv_database['metadata'] = {
-        'source_file': str(cv_path),
-        'raw_text': raw_text or "",
         'data_source': 'profile.json'
     }
 

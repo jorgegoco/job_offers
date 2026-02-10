@@ -12,12 +12,9 @@ import anthropic
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
+from execution.utils import load_json
 
-def load_json(file_path):
-    """Load JSON file."""
-    with open(file_path, 'r') as f:
-        return json.load(f)
+load_dotenv()
 
 def _build_github_section(cv_database):
     """Build prompt section for GitHub projects if available."""
