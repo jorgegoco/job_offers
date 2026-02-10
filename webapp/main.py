@@ -28,7 +28,7 @@ from execution.analyze_job_offer import scrape_job_url, analyze_with_llm
 from execution.analyze_master_cv import get_user_data
 from execution.generate_tailored_cv import generate_tailored_cv
 from execution.generate_cover_letter import generate_cover_letter
-from execution.fetch_github_repos import fetch_all_repos, select_relevant_repos
+from execution.fetch_github_repos import load_curated_repos, select_relevant_repos
 from execution.apply_template import (
     analyze_template_style,
     markdown_to_pdf,
@@ -153,17 +153,11 @@ def _get_github_username():
 
 
 def _fetch_github_projects(job_analysis):
-    """Fetch and select relevant GitHub projects. Returns (repos, error_msg)."""
-    username = _get_github_username()
-    if not username:
-        return [], None
-
-    token = os.getenv("GITHUB_TOKEN")
-    if not token:
-        return [], None
-
+    """Load curated repos and select relevant ones. Returns (repos, error_msg)."""
     try:
-        all_repos = fetch_all_repos(username)
+        all_repos = load_curated_repos()
+        if not all_repos:
+            return [], None
         selected = select_relevant_repos(all_repos, job_analysis)
         _save_json(GITHUB_SELECTED_PATH, selected)
         return selected, None
@@ -257,11 +251,8 @@ def api_load_cv():
 
 @app.post("/api/fetch-github")
 def api_fetch_github():
-    """Fetch all GitHub repos for the user (cached 24h)."""
-    username = _get_github_username()
-    if not username:
-        raise HTTPException(status_code=400, detail="No GitHub URL in profile.")
-    repos = fetch_all_repos(username)
+    """Return the curated GitHub repos list."""
+    repos = load_curated_repos()
     return {"repos": repos, "count": len(repos)}
 
 

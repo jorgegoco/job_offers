@@ -1,0 +1,336 @@
+[
+  {
+    "name": "job_offers",
+    "description": "AI-powered job application generator. FastAPI webapp that analyzes job postings and generates tailored CVs and cover letters using Claude LLM, with auto language detection and PDF export.",
+    "technologies": [
+      "Python",
+      "FastAPI",
+      "Anthropic Claude API",
+      "WeasyPrint",
+      "HTML",
+      "JavaScript"
+    ],
+    "html_url": "https://github.com/jorgegoco/job_offers",
+    "homepage": null,
+    "private": false,
+    "category": "professional",
+    "last_activity": "2026-02-10T17:05:08Z",
+    "is_recent": true
+  },
+  {
+    "name": "miagentuca-demos",
+    "description": "Production-deployed AI agent demos for miagentuca.es. Three specialized bots for SME automation: accounting assistant (gestoria), purchasing agent (compras), and explainer bot. Dockerized on Contabo VPS.",
+    "technologies": [
+      "Python",
+      "FastAPI",
+      "OpenAI API",
+      "Anthropic Claude API",
+      "Docker"
+    ],
+    "html_url": "https://github.com/jorgegoco/miagentuca-demos",
+    "homepage": "https://gestoria.miagentuca.es",
+    "private": false,
+    "category": "professional",
+    "last_activity": "2026-02-08T21:33:43Z",
+    "is_recent": true
+  },
+  {
+    "name": "miagentuca-landingpage",
+    "description": "Live business website for AI consulting practice targeting SMEs. Hybrid architecture: React 19 SPA (home) + static HTML (blog/services). 14 pages with interactive AI demos, SEO-optimized blog, GitHub Actions CI/CD.",
+    "technologies": [
+      "React",
+      "TypeScript",
+      "Tailwind CSS",
+      "HTML",
+      "JavaScript",
+      "GitHub Actions"
+    ],
+    "html_url": "https://github.com/jorgegoco/miagentuca-landingpage",
+    "homepage": "https://miagentuca.es",
+    "private": false,
+    "category": "professional",
+    "last_activity": "2026-02-06T21:26:44Z",
+    "is_recent": true
+  },
+  {
+    "name": "research-agentic-ai",
+    "description": "Multi-agent AI research system. Planner, researcher, writer, and editor agents work in sequence to produce academic reports. Integrates Tavily search, arXiv with PDF extraction, and Wikipedia. FastAPI web interface with real-time progress tracking.",
+    "technologies": [
+      "Python",
+      "FastAPI",
+      "PostgreSQL",
+      "Docker",
+      "LangChain"
+    ],
+    "html_url": "https://github.com/jorgegoco/research-agentic-ai",
+    "homepage": null,
+    "private": false,
+    "category": "professional",
+    "last_activity": "2025-10-27T17:58:52Z",
+    "is_recent": true
+  },
+  {
+    "name": "code-optimizer",
+    "description": "AI-powered algorithm performance analyzer. Generates 2-3 alternative implementations via LLM, runs strategic stress tests with AI-generated edge cases, and produces Big O complexity reports with empirical validation.",
+    "technologies": [
+      "Python",
+      "OpenAI API",
+      "Anthropic Claude API"
+    ],
+    "html_url": "https://github.com/jorgegoco/code-optimizer",
+    "homepage": null,
+    "private": false,
+    "category": "professional",
+    "last_activity": "2025-10-29T19:31:22Z",
+    "is_recent": true
+  },
+  {
+    "name": "uigen",
+    "description": "AI-powered React component generator with live preview. Generates components from natural language using Claude via Vercel AI SDK. Virtual file system, hot reload preview, user accounts with component persistence.",
+    "technologies": [
+      "TypeScript",
+      "Next.js 15",
+      "React 19",
+      "Tailwind CSS",
+      "Prisma",
+      "SQLite",
+      "Vercel AI SDK"
+    ],
+    "html_url": "https://github.com/jorgegoco/uigen",
+    "homepage": null,
+    "private": true,
+    "category": "professional",
+    "last_activity": "2025-08-27T18:54:52Z",
+    "is_recent": true
+  },
+  {
+    "name": "audio-diary-app",
+    "description": "Privacy-first audio diary with automatic speech-to-text using local Whisper AI. No data sent to external services. In-browser recording, file upload, full-text search through transcriptions.",
+    "technologies": [
+      "TypeScript",
+      "Next.js 15",
+      "FastAPI",
+      "Python",
+      "Whisper AI",
+      "Tailwind CSS"
+    ],
+    "html_url": "https://github.com/jorgegoco/audio-diary-app",
+    "homepage": null,
+    "private": true,
+    "category": "professional",
+    "last_activity": "2025-09-23T17:22:26Z",
+    "is_recent": true
+  },
+  {
+    "name": "local-chatbot",
+    "description": "MCP Research Chatbot \u2014 intelligent research assistant for arXiv papers. Next.js 15 + Shadcn UI frontend with streaming responses, paper browser, topic explorer. MCP integration for tool execution with local LLM inference via Ollama.",
+    "technologies": [
+      "TypeScript",
+      "Next.js 15",
+      "React",
+      "Shadcn UI",
+      "Tailwind CSS",
+      "Python",
+      "MCP",
+      "Ollama"
+    ],
+    "html_url": "https://github.com/jorgegoco/local-chatbot",
+    "homepage": null,
+    "private": true,
+    "category": "professional",
+    "last_activity": "2025-10-01T11:58:34Z",
+    "is_recent": true
+  },
+  {
+    "name": "chatbot-with-tools",
+    "description": "Extensible AI chatbot with modular tool-based architecture. Local inference via Ollama (qwen2.5:3b). Web interface (Next.js + FastAPI) and CLI mode. Boilerplate for adding custom tools.",
+    "technologies": [
+      "TypeScript",
+      "Python",
+      "Next.js",
+      "FastAPI",
+      "Ollama",
+      "CSS"
+    ],
+    "html_url": "https://github.com/jorgegoco/chatbot-with-tools",
+    "homepage": null,
+    "private": true,
+    "category": "professional",
+    "last_activity": "2025-10-08T11:00:21Z",
+    "is_recent": true
+  },
+  {
+    "name": "mcp-chatbot-client",
+    "description": "Production-ready MCP chatbot client. Connects to unlimited MCP-compatible servers simultaneously for dynamic tool discovery. Demonstrates the M*N to M+N integration pattern.",
+    "technologies": [
+      "Python",
+      "MCP",
+      "Anthropic Claude API"
+    ],
+    "html_url": "https://github.com/jorgegoco/mcp-chatbot-client",
+    "homepage": null,
+    "private": false,
+    "category": "professional",
+    "last_activity": "2025-12-01T17:18:57Z",
+    "is_recent": true
+  },
+  {
+    "name": "agent-kit",
+    "description": "Flexible agent framework combining AISuite (local tools) and MCP (remote tool servers). Hybrid architecture for modular AI agent development with async context managers and multi-server support.",
+    "technologies": [
+      "Python",
+      "AISuite",
+      "MCP"
+    ],
+    "html_url": "https://github.com/jorgegoco/agent-kit",
+    "homepage": null,
+    "private": false,
+    "category": "professional",
+    "last_activity": "2025-11-17T20:47:30Z",
+    "is_recent": true
+  },
+  {
+    "name": "arxiv-mcp-server",
+    "description": "MCP server for academic paper search via arXiv API. Provides tools for paper search, resources for browsing topics, and prompts for research analysis workflows.",
+    "technologies": [
+      "Python",
+      "MCP",
+      "arXiv API"
+    ],
+    "html_url": "https://github.com/jorgegoco/arxiv-mcp-server",
+    "homepage": null,
+    "private": false,
+    "category": "professional",
+    "last_activity": "2025-09-26T17:25:01Z",
+    "is_recent": true
+  },
+  {
+    "name": "data_analysis",
+    "description": "E-commerce Business Intelligence dashboard. Streamlit interactive dashboard with KPI cards, trend indicators, choropleth maps. Modular design with reusable data loading and metrics calculation.",
+    "technologies": [
+      "Python",
+      "Jupyter Notebook",
+      "Streamlit",
+      "Pandas"
+    ],
+    "html_url": "https://github.com/jorgegoco/data_analysis",
+    "homepage": null,
+    "private": true,
+    "category": "professional",
+    "last_activity": "2025-08-25T17:38:19Z",
+    "is_recent": true
+  },
+  {
+    "name": "fitness-tracker",
+    "description": "Agentic AI system converting natural language to SQL queries with a reflection pattern for self-correction. Event-sourced SQLite database with configurable sample data.",
+    "technologies": [
+      "Python",
+      "OpenAI API",
+      "SQLite"
+    ],
+    "html_url": "https://github.com/jorgegoco/fitness-tracker",
+    "homepage": null,
+    "private": false,
+    "category": "professional",
+    "last_activity": "2025-11-03T12:49:51Z",
+    "is_recent": true
+  },
+  {
+    "name": "smart-file-organizer",
+    "description": "AI-powered CLI agent for file management through natural language. Multi-tool system: file operations, weather, QR codes, time utilities. Interactive and single-command modes.",
+    "technologies": [
+      "Python",
+      "OpenAI API"
+    ],
+    "html_url": "https://github.com/jorgegoco/smart-file-organizer",
+    "homepage": null,
+    "private": false,
+    "category": "portfolio",
+    "last_activity": "2025-11-05T18:08:21Z",
+    "is_recent": true
+  },
+  {
+    "name": "next-portfolio",
+    "description": "Professional portfolio built with Next.js 13 App Router, Server Actions, TypeScript, Tailwind CSS, and Framer Motion. Contact form with React Email + Resend. Light/dark mode.",
+    "technologies": [
+      "TypeScript",
+      "Next.js",
+      "React",
+      "Tailwind CSS",
+      "Framer Motion"
+    ],
+    "html_url": "https://github.com/jorgegoco/next-portfolio",
+    "homepage": "https://jorgegoco.vercel.app",
+    "private": false,
+    "category": "portfolio",
+    "last_activity": "2024-09-25T09:17:10Z",
+    "is_recent": false
+  },
+  {
+    "name": "sell_rails",
+    "description": "Full-featured buy/sell marketplace. User auth, product listings with image uploads via Amazon S3, admin category management. Dockerized, deployed on Fly.dev.",
+    "technologies": [
+      "Ruby",
+      "Ruby on Rails",
+      "PostgreSQL",
+      "Amazon S3",
+      "Docker"
+    ],
+    "html_url": "https://github.com/jorgegoco/sell_rails",
+    "homepage": "https://sellit-rails.fly.dev/",
+    "private": false,
+    "category": "portfolio",
+    "last_activity": "2023-09-22T18:25:53Z",
+    "is_recent": false
+  },
+  {
+    "name": "ticket_admin_mern_stack_frontend",
+    "description": "Ticket management system \u2014 React frontend. Role-based access (admin, manager, employee), full CRUD on tickets, dashboard with metrics.",
+    "technologies": [
+      "JavaScript",
+      "React",
+      "CSS",
+      "REST API"
+    ],
+    "html_url": "https://github.com/jorgegoco/ticket_admin_mern_stack_frontend",
+    "homepage": "https://ticketadmin.onrender.com",
+    "private": false,
+    "category": "portfolio",
+    "last_activity": "2023-09-07T18:04:08Z",
+    "is_recent": false
+  },
+  {
+    "name": "ticket_admin_mern_stack",
+    "description": "Ticket management system \u2014 Node.js/Express backend. MongoDB database, JWT authentication, role-based authorization.",
+    "technologies": [
+      "JavaScript",
+      "Node.js",
+      "Express",
+      "MongoDB",
+      "JWT"
+    ],
+    "html_url": "https://github.com/jorgegoco/ticket_admin_mern_stack",
+    "homepage": "https://ticketadmin.onrender.com",
+    "private": false,
+    "category": "portfolio",
+    "last_activity": "2023-09-07T18:02:30Z",
+    "is_recent": false
+  },
+  {
+    "name": "express_users_template",
+    "description": "Reusable Node.js auth backend template. JWT authentication with refresh token rotation, reuse detection for security, support for multiple concurrent logins.",
+    "technologies": [
+      "JavaScript",
+      "Node.js",
+      "Express",
+      "MongoDB",
+      "JWT"
+    ],
+    "html_url": "https://github.com/jorgegoco/express_users_template",
+    "homepage": null,
+    "private": false,
+    "category": "portfolio",
+    "last_activity": "2023-10-20T19:17:54Z",
+    "is_recent": false
+  }
+]
