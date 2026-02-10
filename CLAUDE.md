@@ -9,22 +9,24 @@ Web app that generates tailored CVs and cover letters from job postings. The use
 - `webapp/main.py` — FastAPI app, entry point for all operations
 - `execution/analyze_job_offer.py` — Scrapes/parses job posting, extracts requirements and language
 - `execution/analyze_master_cv.py` — Loads profile data from profile.json, provides `update_profile()`
-- `execution/fetch_github_repos.py` — Fetches GitHub repos, selects most relevant to job
+- `execution/fetch_github_repos.py` — Loads curated repos, selects most relevant to job
 - `execution/generate_tailored_cv.py` — Generates tailored CV markdown
 - `execution/generate_cover_letter.py` — Generates cover letter markdown
 - `execution/apply_template.py` — Converts markdown to styled PDFs
+- `execution/utils.py` — Shared `load_json`/`load_markdown` helpers
 - `resources/profile.json` — Single source of truth for all user profile data
+- `resources/github_repos.json` — Curated GitHub repos for CV enrichment
 - `.env` — API keys and model configuration
 
 ## Architecture
 
-The webapp exposes API endpoints that call execution scripts. `resources/profile.json` is the data source for all profile information. Intermediate files go in `.tmp/job_applications/`. Final PDFs go in `output/job_applications/`.
+The webapp exposes API endpoints that call execution scripts. `resources/profile.json` is the data source for all profile information. GitHub repos come from a curated list in `resources/github_repos.json`, not fetched live from the API. Intermediate files and generated PDFs go in `.tmp/job_applications/`. Users explicitly save final documents to `output/job_applications/` via the "Save to output/" button.
 
 ## Environment Variables
 
 ```
 ANTHROPIC_API_KEY    — Required. Anthropic API key.
-GITHUB_TOKEN         — Optional. GitHub personal access token for repo fetching.
+GITHUB_TOKEN         — Optional. Only needed for README enrichment of selected repos and --check-new discovery.
 MODEL_EXTRACTION     — Model for extraction tasks (Haiku). Cheaper, used for job analysis and GitHub selection.
 MODEL_GENERATION     — Model for generation tasks (Sonnet). Higher quality, used for CV and cover letter.
 ```
@@ -80,6 +82,9 @@ The tailored CV must contain ONLY standard CV sections (contact info, summary, e
 **Issue:** All scripts used Sonnet, making each application expensive.
 **Fix:** Introduced MODEL_EXTRACTION (Haiku) and MODEL_GENERATION (Sonnet) tiers. Extraction tasks use Haiku, generation uses Sonnet. Added prompt caching for stable profile data.
 **Impact:** ~40-60% cost reduction per application.
+
+### 2026-02-10: Project Refactor
+**Changes:** Replaced GitHub API fetching with curated repo list (resources/github_repos.json). Moved PDF output to .tmp/ with explicit save-to-output workflow. Removed dead files (master_cv.pdf, cv_template.pdf, execution/utils/ package). Merged requirements into single file. Extracted shared load_json/load_markdown into execution/utils.py. Unified gap analysis defense — webapp now uses same 3-layer split as CLI.
 
 ## Git Commit Rules
 

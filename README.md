@@ -21,8 +21,9 @@ Then open http://localhost:8000
 ```
 webapp/              Web UI and API endpoints (FastAPI)
 execution/           Python scripts that do the actual work
-resources/profile.json   Your CV data (single source of truth)
-output/job_applications/ Generated PDFs
+resources/profile.json       Your CV data (single source of truth)
+resources/github_repos.json  Curated GitHub project list
+output/job_applications/     Saved PDFs (explicitly saved by user)
 .tmp/                Intermediate files (safe to delete)
 .env                 API keys and model config
 scripts/             Windows launcher scripts
@@ -37,7 +38,7 @@ Edit `resources/profile.json` directly. Changes take effect on the next generati
 Create a `.env` file with:
 ```
 ANTHROPIC_API_KEY=your-key-here
-GITHUB_TOKEN=your-github-pat          # optional, for project fetching
+GITHUB_TOKEN=your-github-pat          # optional, for repo enrichment
 MODEL_EXTRACTION=claude-haiku-4-5-20251001
 MODEL_GENERATION=claude-sonnet-4-5-20250929
 ```
