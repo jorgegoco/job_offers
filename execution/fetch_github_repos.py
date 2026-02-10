@@ -242,7 +242,7 @@ Prioritize:
 Return ONLY the JSON array, no other text."""
 
     message = client.messages.create(
-        model="claude-sonnet-4-5-20250929",
+        model=os.getenv("MODEL_EXTRACTION", "claude-haiku-4-5-20251001"),
         max_tokens=2000,
         messages=[{"role": "user", "content": prompt}],
     )

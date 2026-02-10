@@ -65,15 +65,26 @@ CRITICAL: Address the feedback above while maintaining the overall professionali
 Focus on the specific changes requested without compromising other strong elements from the previous version.
 """
 
-    prompt = f"""You are an expert cover letter writer. Generate a compelling cover letter for this job application.
+    # --- System message: stable CV content (cached across iterations) ---
+    system_content = [
+        {
+            "type": "text",
+            "text": "You are an expert cover letter writer. You will be given the candidate's tailored CV below. Use it as the basis for generating compelling cover letters."
+        },
+        {
+            "type": "text",
+            "text": f"CANDIDATE'S TAILORED CV FOR THIS JOB:\n{tailored_cv}",
+            "cache_control": {"type": "ephemeral"}
+        }
+    ]
+
+    # --- User message: job-specific content (changes per iteration) ---
+    user_prompt = f"""Generate a compelling cover letter for this job application.
 {language_instruction}
 {iteration_context}
 
 JOB ANALYSIS:
 {json.dumps(job_analysis, indent=2)}
-
-CANDIDATE'S TAILORED CV FOR THIS JOB:
-{tailored_cv}
 
 USER'S SPECIFIC COMMENTS (HIGH PRIORITY - INCORPORATE PROMINENTLY):
 {user_comments}
@@ -112,9 +123,10 @@ Then the letter content.
 """
 
     message = client.messages.create(
-        model="claude-sonnet-4-5-20250929",
+        model=os.getenv("MODEL_GENERATION", "claude-sonnet-4-5-20250929"),
         max_tokens=4000,
-        messages=[{"role": "user", "content": prompt}]
+        system=system_content,
+        messages=[{"role": "user", "content": user_prompt}]
     )
 
     return message.content[0].text

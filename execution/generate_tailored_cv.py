@@ -75,16 +75,29 @@ CRITICAL: Address the feedback above while maintaining the overall quality and s
 Focus on the specific changes requested without losing other strong elements from the previous version.
 """
 
-    prompt = f"""You are an expert CV writer. Generate a tailored CV for this specific job offer.
+    # --- System message: stable profile data (cached across calls) ---
+    system_content = [
+        {
+            "type": "text",
+            "text": "You are an expert CV writer. You will be given a candidate's full profile data below. Use it to generate tailored CVs when prompted."
+        },
+        {
+            "type": "text",
+            "text": f"CANDIDATE'S FULL CV DATABASE:\n{json.dumps(cv_database, indent=2)}",
+            "cache_control": {"type": "ephemeral"}
+        }
+    ]
+
+    # --- User message: job-specific content (changes per job/iteration) ---
+    github_section = _build_github_section(cv_database)
+
+    user_prompt = f"""Generate a tailored CV for this specific job offer.
 {language_instruction}
 {iteration_context}
 
 JOB ANALYSIS:
 {json.dumps(job_analysis, indent=2)}
-
-CANDIDATE'S FULL CV DATABASE:
-{json.dumps(cv_database, indent=2)}
-{_build_github_section(cv_database)}
+{github_section}
 USER'S SPECIFIC COMMENTS (HIGH PRIORITY - INCORPORATE PROMINENTLY):
 {user_comments}
 
@@ -150,9 +163,10 @@ Place all CV content ABOVE the separator. Place all gap analysis, recommendation
 """
 
     message = client.messages.create(
-        model="claude-sonnet-4-5-20250929",
+        model=os.getenv("MODEL_GENERATION", "claude-sonnet-4-5-20250929"),
         max_tokens=12000,
-        messages=[{"role": "user", "content": prompt}]
+        system=system_content,
+        messages=[{"role": "user", "content": user_prompt}]
     )
 
     return message.content[0].text

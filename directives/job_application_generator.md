@@ -386,3 +386,14 @@ update_profile("soft_skills", ["Mentoring", "Public Speaking"])
 **Fix:** Added explicit "CRITICAL - Content that must NEVER appear" section to Step 6 listing forbidden content types.
 **Rule:** The tailored CV must contain ONLY standard CV sections. All internal analysis goes to separate files (cv_gaps.txt) or is shown to user separately, never embedded in the CV itself.
 
+### 2026-02-10: Gap Analysis Separator Fix
+**Issue:** Generated CV included full gap analysis in PDF because LLM used header "Análisis de Gaps y Recomendaciones" not present in gap_markers list.
+**Root cause:** Relying on LLM-generated headers for content splitting is fragile — the LLM can always invent new variations.
+**Fix:** Implemented 3-layer defense: (1) deterministic separator `---GAP_ANALYSIS_SEPARATOR---` in prompt, (2) expanded fallback markers, (3) post-split forbidden content validation that strips any leaked internal analysis.
+**Rule:** Never trust LLM output boundaries based on header matching alone. Always validate output with forbidden-pattern scanning.
+
+### 2026-02-10: Cost Optimization with Model Tiers
+**Issue:** All scripts used Sonnet 4.5 (~$3/MTok input, $15/MTok output), making each application unnecessarily expensive.
+**Fix:** Introduced MODEL_EXTRACTION (Haiku) and MODEL_GENERATION (Sonnet) tiers via .env. Extraction tasks (job analysis, GitHub selection) use Haiku. Generation tasks (CV, cover letter) use Sonnet. Added prompt caching for stable profile data.
+**Impact:** ~40-60% reduction in per-application API cost.
+
