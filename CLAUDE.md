@@ -1,93 +1,89 @@
-# Agent Instructions
+# Agent Reference
 
-> This file is mirrored across CLAUDE.md, AGENTS.md, and GEMINI.md so the same instructions load in any AI environment.
+## What This Project Does
 
-You operate within a 3-layer architecture that separates concerns to maximize reliability. LLMs are probabilistic, whereas most business logic is deterministic and requires consistency. This system fixes that mismatch.
+Web app that generates tailored CVs and cover letters from job postings. The user pastes a job URL or text, the system analyzes it, matches it against their profile, and produces PDF documents in the job's language.
 
-## The 3-Layer Architecture
+## Key Files
 
-**Layer 1: Directive (What to do)**
+- `webapp/main.py` — FastAPI app, entry point for all operations
+- `execution/analyze_job_offer.py` — Scrapes/parses job posting, extracts requirements and language
+- `execution/analyze_master_cv.py` — Loads profile data from profile.json, provides `update_profile()`
+- `execution/fetch_github_repos.py` — Fetches GitHub repos, selects most relevant to job
+- `execution/generate_tailored_cv.py` — Generates tailored CV markdown
+- `execution/generate_cover_letter.py` — Generates cover letter markdown
+- `execution/apply_template.py` — Converts markdown to styled PDFs
+- `resources/profile.json` — Single source of truth for all user profile data
+- `.env` — API keys and model configuration
 
-- Basically just SOPs written in Markdown, live in `directives/`
-- Define the goals, inputs, tools/scripts to use, outputs, and edge cases
-- Natural language instructions, like you'd give a mid-level employee
+## Architecture
 
-**Layer 2: Orchestration (Decision making)**
+The webapp exposes API endpoints that call execution scripts. `resources/profile.json` is the data source for all profile information. Intermediate files go in `.tmp/job_applications/`. Final PDFs go in `output/job_applications/`.
 
-- This is you. Your job: intelligent routing.
-- Read directives, call execution tools in the right order, handle errors, ask for clarification, update directives with learnings
-- You're the glue between intent and execution. E.g you don't try scraping websites yourself—you read `directives/scrape_website.md` and come up with inputs/outputs and then run `execution/scrape_single_site.py`
+## Environment Variables
 
-**Layer 3: Execution (Doing the work)**
+```
+ANTHROPIC_API_KEY    — Required. Anthropic API key.
+GITHUB_TOKEN         — Optional. GitHub personal access token for repo fetching.
+MODEL_EXTRACTION     — Model for extraction tasks (Haiku). Cheaper, used for job analysis and GitHub selection.
+MODEL_GENERATION     — Model for generation tasks (Sonnet). Higher quality, used for CV and cover letter.
+```
 
-- Deterministic Python scripts in `execution/`
-- Environment variables, api tokens, etc are stored in `.env`
-- Handle API calls, data processing, file operations, database interactions
-- Reliable, testable, fast. Use scripts instead of manual work.
+## Technical Notes
 
-**Why this works:** if you do everything yourself, errors compound. 90% accuracy per step = 59% success over 5 steps. The solution is push complexity into deterministic code. That way you just focus on decision-making.
+### 3-Layer Gap Analysis Defense
 
-## Operating Principles
+The CV generation must never leak internal analysis into the output PDF. Three layers prevent this:
+1. **Deterministic separator**: Prompt includes `---GAP_ANALYSIS_SEPARATOR---` to split CV from analysis
+2. **Fallback markers**: Expanded list of header patterns ("Análisis de Gaps", "Gap Analysis", etc.) for splitting
+3. **Post-split validation**: Forbidden-pattern scan strips any leaked internal content after splitting
 
-**1. Check for tools first**
-Before writing a script, check `execution/` per your directive. Only create new scripts if none exist.
+Never trust LLM output boundaries based on header matching alone. Always validate with forbidden-pattern scanning.
 
-**2. Self-anneal when things break**
+### Model Tiers
 
-- Read error message and stack trace
-- Fix the script and test it again (unless it uses paid tokens/credits/etc—in which case you check w user first)
-- Update the directive with what you learned (API limits, timing, edge cases)
-- Example: you hit an API rate limit → you then look into API → find a batch endpoint that would fix → rewrite script to accommodate → test → update directive.
+- **Haiku** (`MODEL_EXTRACTION`): Job analysis, GitHub repo selection — extraction tasks
+- **Sonnet** (`MODEL_GENERATION`): CV generation, cover letter generation — creative tasks
+- ~40-60% cost reduction vs using Sonnet for everything
 
-**3. Update directives as you learn**
-Directives are living documents. When you discover API constraints, better approaches, common errors, or timing expectations—update the directive. But don't create or overwrite directives without asking unless explicitly told to. Directives are your instruction set and must be preserved (and improved upon over time, not extemporaneously used and then discarded).
+### User Comments as Primary Directives
 
-## Self-annealing loop
+User comments override automatic matching. If the user says "emphasize Python" or "downplay management", that takes absolute priority over what the job posting requests. The user knows their audience best.
 
-Errors are learning opportunities. When something breaks:
+### Language Auto-Detection
 
-1. Fix it
-2. Update the tool
-3. Test tool, make sure it works
-4. Update directive to include new flow
-5. System is now stronger
+The job posting language is detected automatically and all output (CV, cover letter, section headers) is generated in that language. Supported: en, es, fr, de, it, pt. Bilingual postings use primary language by word count.
 
-## File Organization
+### Mandatory Skill Updates
 
-**Deliverables vs Intermediates:**
+After every CV tailoring session, any new skills, certifications, or experience mentioned during the conversation MUST be saved to `resources/profile.json` using `update_profile()` from `execution/analyze_master_cv.py`. This is not optional — skills revealed during tailoring are real profile data.
 
-- **Deliverables**: Google Sheets, Google Slides, or other cloud-based outputs that the user can access
-- **Intermediates**: Temporary files needed during processing
+### Iterative Refinement
 
-**Directory structure:**
+CV and cover letter each support up to 5 refinement iterations. User reviews draft, provides feedback, document is regenerated. Maximum 5 iterations to prevent cost explosion.
 
-- `.tmp/` - All intermediate files (dossiers, scraped data, temp exports). Never commit, always regenerated.
-- `execution/` - Python scripts (the deterministic tools)
-- `directives/` - SOPs in Markdown (the instruction set)
-- `.env` - Environment variables and API keys
-- `credentials.json`, `token.json` - Google OAuth credentials (required files, in `.gitignore`)
+### CV Content Boundaries
 
-**Key principle:** Local files are only for processing. Deliverables live in cloud services (Google Sheets, Slides, etc.) where the user can access them. Everything in `.tmp/` can be deleted and regenerated.
+The tailored CV must contain ONLY standard CV sections (contact info, summary, experience, education, skills, projects, languages). Never include: gap analysis, recommendations, match ratings, internal notes, interview tips, or meta-commentary. All internal analysis goes to `cv_gaps.txt` or is shown separately.
 
-## Git Commit Practices
+## Learnings Log
 
-**When to commit:**
-- After completing substantial, related changes to the codebase
-- When a logical unit of work is finished (e.g., implementing a feature, fixing a bug, refactoring a component)
-- Before switching to a different task or area of work
-- When changes are tested and working correctly
+### 2026-01-20: CV Content Boundaries
+**Issue:** Generated CV included internal gap analysis and match ratings in the output.
+**Fix:** Added explicit forbidden content list to generation prompt. CV must contain only standard sections. Internal analysis goes to separate files.
 
-**Commit message rules:**
-- NEVER mention AI assistance, Claude, or any LLM in commit messages
-- Write clear, concise commit messages that describe WHAT changed and WHY
-- Use conventional commit style when appropriate (e.g., "feat:", "fix:", "refactor:")
-- Commit messages should read as if written by a human developer
-- Focus on the technical changes and business value, not the process of how they were created
+### 2026-02-10: Gap Analysis Separator Fix
+**Issue:** CV included gap analysis in PDF because LLM used a header variation not in the marker list.
+**Fix:** Implemented 3-layer defense: deterministic separator in prompt, expanded fallback markers, post-split forbidden content validation.
 
-## Summary
+### 2026-02-10: Cost Optimization with Model Tiers
+**Issue:** All scripts used Sonnet, making each application expensive.
+**Fix:** Introduced MODEL_EXTRACTION (Haiku) and MODEL_GENERATION (Sonnet) tiers. Extraction tasks use Haiku, generation uses Sonnet. Added prompt caching for stable profile data.
+**Impact:** ~40-60% cost reduction per application.
 
-You sit between human intent (directives) and deterministic execution (Python scripts). Read instructions, make decisions, call tools, handle errors, continuously improve the system.
+## Git Commit Rules
 
-Be pragmatic. Be reliable. Self-anneal.
-
-Also, use Opus-4.5 for everything while building. It came out a few days ago and is an order of magnitude better than Sonnet and other models. If you can't find it, look it up first.
+- Clear, concise messages describing what changed and why
+- Use conventional commits (feat:, fix:, refactor:)
+- Never mention AI, Claude, or any LLM in commit messages
+- Messages should read as if written by a human developer
