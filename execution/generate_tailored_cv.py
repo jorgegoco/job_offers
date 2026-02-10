@@ -294,6 +294,9 @@ def main():
 
     print(f"[SPLIT] Final method: {split_method}")
 
+    # Final cleanup: remove any remaining separator text from CV content
+    cv_content = cv_content.replace(DETERMINISTIC_SEPARATOR, "").rstrip()
+
     # Ensure output directory exists
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
