@@ -10,6 +10,9 @@ token.json
 # Personal profile data
 resources/profile.json
 
+# Output documents
+output/
+
 # Temporary and intermediate files
 .tmp/
 *.tmp
