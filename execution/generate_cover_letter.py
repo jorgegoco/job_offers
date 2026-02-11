@@ -108,7 +108,6 @@ Do NOT include:
 - Date (will be added during PDF formatting)
 
 Start with:
-# Cover Letter
 ## [Job Title] at [Company Name]
 
 Then the letter content.

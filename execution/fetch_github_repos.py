@@ -93,6 +93,8 @@ def select_relevant_repos(repos, job_analysis):
             "name": r["name"],
             "description": r["description"],
             "technologies": r["technologies"],
+            "html_url": r.get("html_url", ""),
+            "private": r.get("private", False),
             "last_activity": r["last_activity"],
             "is_recent": r["is_recent"],
         })
@@ -148,9 +150,6 @@ Return ONLY the JSON array, no other text."""
             selected.append(repo)
 
     print(f"Selected {len(selected)} repos: {', '.join(r['name'] for r in selected)}")
-
-    # Enrich with README content
-    selected = fetch_repo_readmes(selected)
 
     return selected
 
