@@ -19,13 +19,16 @@
   },
   {
     "name": "miagentuca-demos",
-    "description": "Production-deployed AI agent demos for miagentuca.es. Three specialized bots for SME automation: accounting assistant (gestoria), purchasing agent (compras), and explainer bot. Dockerized on Contabo VPS.",
+    "description": "Production-deployed AI agent demos for miagentuca.es. Three specialized bots for SME automation: accounting assistant (gestoria), purchasing agent (compras), and explainer bot. Includes document extraction projects exploring OCR, layout models, and VLM tools. Dockerized on Contabo VPS via Easypanel.",
     "technologies": [
       "Python",
       "FastAPI",
       "OpenAI API",
       "Anthropic Claude API",
-      "Docker"
+      "Docker",
+      "Easypanel",
+      "OCR",
+      "VLM"
     ],
     "html_url": "https://github.com/jorgegoco/miagentuca-demos",
     "homepage": "https://gestoria.miagentuca.es",
